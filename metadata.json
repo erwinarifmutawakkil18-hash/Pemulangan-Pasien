@@ -1,0 +1,6 @@
+{
+  "name": "Sistem Pemulangan Pasien Rawat Inap",
+  "description": "Sistem pemulangan pasien terintegrasi 3 level (Ruang Rawat Inap, TPP & Informasi, Kasir Billing) dilengkapi Panel User Admin untuk mengatur pilihan dropdown berbagai jenis ruangan, DPJP, penjamin, dan hak akses.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
