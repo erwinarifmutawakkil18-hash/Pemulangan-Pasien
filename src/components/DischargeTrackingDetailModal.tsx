@@ -250,12 +250,12 @@ export const DischargeTrackingDetailModal: React.FC<DischargeTrackingDetailModal
             )}
           </div>
 
-          {/* Section 3: Data Billing / Kasir */}
+          {/* Section 3: Data Billing */}
           <div className="border border-slate-200 rounded-xl p-4 bg-white space-y-2">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <span className="font-bold text-emerald-800 text-xs flex items-center gap-1.5">
                 <Receipt className="w-4 h-4 text-emerald-600" />
-                3. Data Finalisasi Kasir / Billing
+                3. Data Finalisasi Billing
               </span>
               {patient.billingData?.finalizedAt ? (
                 <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
@@ -273,7 +273,7 @@ export const DischargeTrackingDetailModal: React.FC<DischargeTrackingDetailModal
                   <strong className="font-mono text-slate-900">{patient.billingData.nomorKuitansi || '-'}</strong>
                 </div>
                 <div>
-                  <span className="text-slate-500 block text-[11px]">Petugas Kasir:</span>
+                  <span className="text-slate-500 block text-[11px]">Petugas Billing:</span>
                   <span className="font-semibold text-slate-800">{patient.billingData.finalizedBy || '-'}</span>
                 </div>
                 <div>
@@ -289,7 +289,7 @@ export const DischargeTrackingDetailModal: React.FC<DischargeTrackingDetailModal
               </div>
             ) : (
               <p className="text-slate-400 italic py-2">
-                Menunggu penyelesaian dan klik finalisasi pemulangan oleh bagian Billing / Kasir.
+                Menunggu penyelesaian dan klik finalisasi pemulangan oleh bagian Billing.
               </p>
             )}
           </div>
@@ -305,7 +305,7 @@ export const DischargeTrackingDetailModal: React.FC<DischargeTrackingDetailModal
               <p className="font-bold text-slate-800">{patient.tppData?.validatedBy || '(................................)'}</p>
             </div>
             <div>
-              <p className="text-slate-600 mb-12">Petugas Billing / Kasir</p>
+              <p className="text-slate-600 mb-12">Petugas Billing</p>
               <p className="font-bold text-slate-800">{patient.billingData?.finalizedBy || '(................................)'}</p>
             </div>
           </div>

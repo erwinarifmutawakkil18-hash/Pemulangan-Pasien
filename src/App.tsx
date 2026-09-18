@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   PatientDischarge, RoleType, DUMMY_PATIENTS, 
   TppValidationData, BillingFinalizationData,
-  MasterSettings, DEFAULT_MASTER_SETTINGS
+  MasterSettings, DEFAULT_MASTER_SETTINGS, AuthUser
 } from './types';
 import { RoleNavbar } from './components/RoleNavbar';
 import { PatientDischargeTable } from './components/PatientDischargeTable';
@@ -11,15 +11,29 @@ import { TppValidationModal } from './components/TppValidationModal';
 import { BillingFinalizeModal } from './components/BillingFinalizeModal';
 import { DischargeTrackingDetailModal } from './components/DischargeTrackingDetailModal';
 import { AdminSettingsView } from './components/AdminSettingsView';
+import { LoginView } from './components/LoginView';
 import { 
   Building2, CreditCard, Receipt, CheckCircle2, 
-  Clock, ShieldCheck, Download, Upload, Info 
+  Clock, ShieldCheck 
 } from 'lucide-react';
 
 const STORAGE_KEY = 'sim_pemulangan_pasien_3level_v2';
 const SETTINGS_STORAGE_KEY = 'sim_master_settings_v1';
+const AUTH_USER_KEY = 'sim_current_user_session_v1';
 
 export default function App() {
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
+    try {
+      const stored = localStorage.getItem(AUTH_USER_KEY);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.warn('Gagal membaca sesi user dari localStorage:', e);
+    }
+    return null;
+  });
+
   const [patients, setPatients] = useState<PatientDischarge[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -44,8 +58,14 @@ export default function App() {
     return DEFAULT_MASTER_SETTINGS;
   });
 
-  const [activeRole, setActiveRole] = useState<RoleType | 'monitor'>('ruangan');
+  const [activeRole, setActiveRole] = useState<RoleType | 'monitor'>(() => {
+    return currentUser ? (currentUser.role === 'admin' ? 'admin' : currentUser.role) : 'ruangan';
+  });
   const [selectedRuangan, setSelectedRuangan] = useState<string>('all');
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    // Default ke tanggal hari ini (YYYY-MM-DD)
+    return new Date().toISOString().slice(0, 10);
+  });
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'menunggu_tpp' | 'menunggu_billing' | 'selesai'>('all');
 
@@ -56,6 +76,19 @@ export default function App() {
   const [selectedDetailPatient, setSelectedDetailPatient] = useState<PatientDischarge | null>(null);
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Sync user session to localStorage
+  useEffect(() => {
+    try {
+      if (currentUser) {
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(currentUser));
+      } else {
+        localStorage.removeItem(AUTH_USER_KEY);
+      }
+    } catch (e) {
+      console.error('Gagal menyimpan sesi auth:', e);
+    }
+  }, [currentUser]);
 
   // Sync patients to localStorage
   useEffect(() => {
@@ -80,6 +113,17 @@ export default function App() {
     setTimeout(() => {
       setToastMessage(null);
     }, 4000);
+  };
+
+  const handleLoginSuccess = (user: AuthUser) => {
+    setCurrentUser(user);
+    setActiveRole(user.role === 'admin' ? 'admin' : user.role);
+    showToast(`Selamat datang, ${user.namaLengkap} (${user.role.toUpperCase()})`);
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    showToast('Anda telah keluar dari sesi.');
   };
 
   // 1. Input Pasien dari Ruangan
@@ -164,7 +208,7 @@ export default function App() {
     }
   };
 
-  // Filter pasien berdasarkan role, ruangan, status alur, dan pencarian No RM / Nama
+  // Filter pasien berdasarkan role, ruangan, status alur, tanggal pulang, dan pencarian No RM / Nama
   const filteredPatients = patients
     .filter((patient) => {
       // Search match: No RM (6 digit), Nama, DPJP, Ruangan
@@ -184,7 +228,11 @@ export default function App() {
       const matchesStatus =
         statusFilter === 'all' || patient.statusAlur === statusFilter;
 
-      return matchesSearch && matchesRuangan && matchesStatus;
+      // Tanggal filter match (berdasarkan tanggal input ruangan YYYY-MM-DD)
+      const patientDate = patient.waktuInputRuangan.slice(0, 10);
+      const matchesDate = !selectedDate || patientDate === selectedDate;
+
+      return matchesSearch && matchesRuangan && matchesStatus && matchesDate;
     })
     .sort((a, b) => {
       // Prioritaskan status: Menunggu TPP (teratas / ranking 1), lalu Menunggu Billing (ranking 2), lalu Selesai (ranking 3)
@@ -201,11 +249,28 @@ export default function App() {
       return b.waktuInputRuangan.localeCompare(a.waktuInputRuangan);
     });
 
-  // KPI Counts
-  const countMenungguTpp = patients.filter((p) => p.statusAlur === 'menunggu_tpp').length;
-  const countMenungguBilling = patients.filter((p) => p.statusAlur === 'menunggu_billing').length;
-  const countSelesai = patients.filter((p) => p.statusAlur === 'selesai').length;
+  // KPI Counts (sesuai tanggal terpilih jika ada)
+  const patientsOnDate = selectedDate
+    ? patients.filter((p) => p.waktuInputRuangan.slice(0, 10) === selectedDate)
+    : patients;
+
+  const countMenungguTpp = patientsOnDate.filter((p) => p.statusAlur === 'menunggu_tpp').length;
+  const countMenungguBilling = patientsOnDate.filter((p) => p.statusAlur === 'menunggu_billing').length;
+  const countSelesai = patientsOnDate.filter((p) => p.statusAlur === 'selesai').length;
+  const countPasienTanggal = patientsOnDate.length;
   const totalPasien = patients.length;
+
+  // Jika belum login, tampilkan halaman Login View
+  if (!currentUser) {
+    return (
+      <LoginView
+        onLoginSuccess={handleLoginSuccess}
+        ruanganList={masterSettings.daftarRuangan}
+      />
+    );
+  }
+
+  const effectiveRole = currentUser.role === 'admin' ? activeRole : currentUser.role;
 
   return (
     <div className="min-h-screen bg-slate-100/70 text-slate-800 antialiased font-sans flex flex-col selection:bg-teal-100 selection:text-teal-900">
@@ -223,7 +288,9 @@ export default function App() {
         
         {/* Role Switcher & Search Bar */}
         <RoleNavbar
-          activeRole={activeRole}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          activeRole={effectiveRole}
           onRoleChange={setActiveRole}
           selectedRuangan={selectedRuangan}
           onRuanganChange={setSelectedRuangan}
@@ -235,13 +302,16 @@ export default function App() {
           countMenungguBilling={countMenungguBilling}
           countSelesai={countSelesai}
           totalPasien={totalPasien}
+          countPasienTanggal={countPasienTanggal}
+          selectedDate={selectedDate}
+          onDateChange={setSelectedDate}
           ruanganList={masterSettings.daftarRuangan}
           statusFilter={statusFilter}
           onStatusFilterChange={setStatusFilter}
         />
 
         {/* Master & Hak Akses Administrator View */}
-        {activeRole === 'admin' ? (
+        {effectiveRole === 'admin' ? (
           <AdminSettingsView
             settings={masterSettings}
             onSaveSettings={(newSettings) => {
@@ -249,128 +319,45 @@ export default function App() {
               showToast('Pengaturan master dropdown dan hak akses berhasil diperbarui.');
             }}
             onCloseAdmin={() => setActiveRole('ruangan')}
+            onExportBackup={handleExportBackup}
+            onImportBackup={handleImportBackup}
           />
         ) : (
           <>
-            {/* Informative Workflow Banner for Active Role */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-xl bg-teal-50 text-teal-700 shrink-0 mt-0.5">
-                  <Info className="w-4 h-4" />
-                </div>
-                <div>
-                  <strong className="text-slate-900 block">
-                    {activeRole === 'ruangan' && 'Peran: Ruang Rawat Inap (Nurse Station)'}
-                    {activeRole === 'tpp' && 'Peran: TPP dan Informasi (Tempat Pendaftaran Pasien & Admisi)'}
-                    {activeRole === 'billing' && 'Peran: Kasir & Verifikasi Billing'}
-                    {activeRole === 'monitor' && 'Mode Pantauan Terpadu Antar-Unit'}
-                  </strong>
-                  <p className="text-slate-500 mt-0.5 leading-relaxed">
-                    {activeRole === 'ruangan' &&
-                      'Ruangan menginput No. RM 6 Digit, Nama, DPJP, dan Cara Keluar. Ruangan dapat memantau status secara langsung apakah sudah divalidasi oleh TPP dan difinalisasi oleh Billing.'}
-                    {activeRole === 'tpp' &&
-                      'TPP menerima antrean dari ruangan, kemudian mengisi Pembiayaan (BPJS/Umum/dsb), Hak Kelas (1-3, VIP, VVIP), Naik Kelas (Ya/Tidak), dan Titip Kelas (Ya/Tidak) lalu memvalidasi ke Billing.'}
-                    {activeRole === 'billing' &&
-                      'Billing menerima pasien yang telah divalidasi TPP untuk memeriksa penyelesaian klaim dan rincian biaya, lalu mengeklik tombol "Finalisasi Pemulangan".'}
-                    {activeRole === 'monitor' &&
-                      'Menampilkan seluruh perjalanan pemulangan pasien mulai dari input ruangan, verifikasi penjaminan TPP, hingga pelunasan billing kasir.'}
-                  </p>
-                </div>
+            {/* Header Ringkas Info Data Pasien */}
+            <div className="flex items-center justify-between text-xs text-slate-500 px-1">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-slate-800">Daftar Pasien Pulang</span>
+                <span>&bull;</span>
+                <span>
+                  {selectedDate ? (
+                    <>
+                      Tanggal: <strong className="text-slate-700">{selectedDate}</strong> ({filteredPatients.length} pasien)
+                    </>
+                  ) : (
+                    <>{filteredPatients.length} dari total {totalPasien} pasien</>
+                  )}
+                </span>
               </div>
-
-              {/* Backup & Drive integration controls */}
-              <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+              {selectedDate && (
                 <button
-                  onClick={handleExportBackup}
-                  title="Unduh file backup untuk disimpan di Google Drive Anda"
-                  className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition"
+                  type="button"
+                  onClick={() => setSelectedDate('')}
+                  className="text-teal-700 hover:text-teal-800 hover:underline font-medium"
                 >
-                  <Download className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Cadangkan ke Drive (JSON)</span>
+                  Tampilkan Semua Tanggal
                 </button>
-
-                <label
-                  title="Muat data dari file cadangan Google Drive"
-                  className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
-                >
-                  <Upload className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Pulihkan</span>
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={handleImportBackup}
-                    className="hidden"
-                  />
-                </label>
-              </div>
+              )}
             </div>
 
             {/* Main Patient Table with Integrated Status */}
             <PatientDischargeTable
               patients={filteredPatients}
-              activeRole={activeRole}
+              activeRole={effectiveRole}
               onSelectPatientDetail={(p) => setSelectedDetailPatient(p)}
               onOpenTppModal={(p) => setSelectedTppPatient(p)}
               onOpenBillingModal={(p) => setSelectedBillingPatient(p)}
             />
-
-            {/* 3-Level Workflow Visual Guide */}
-            <section className="bg-white rounded-2xl p-5 border border-slate-200 text-xs text-slate-600 shadow-xs space-y-3">
-              <div className="flex items-center gap-2 font-bold text-slate-800 text-sm">
-                <ShieldCheck className="w-4 h-4 text-teal-600" />
-                <span>Alur Pemulangan Pasien Rumah Sakit yang Saling Terhubung:</span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                
-                {/* Step 1 */}
-                <div className="p-4 bg-teal-50/50 rounded-xl border border-teal-200/60 space-y-1.5">
-                  <div className="font-bold text-teal-900 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-teal-700 text-white text-[11px] flex items-center justify-center font-bold">
-                      1
-                    </span>
-                    Ruangan Rawat Inap
-                  </div>
-                  <ul className="text-slate-600 space-y-1 list-disc list-inside text-[11px]">
-                    <li>Input <strong>No RM 6 Digit</strong> & Nama Pasien</li>
-                    <li>Pilih Ruangan, Dokter DPJP, & Cara Keluar</li>
-                    <li>Memantau status apakah sudah divalidasi TPP & Billing</li>
-                  </ul>
-                </div>
-
-                {/* Step 2 */}
-                <div className="p-4 bg-sky-50/50 rounded-xl border border-sky-200/60 space-y-1.5">
-                  <div className="font-bold text-sky-900 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-sky-700 text-white text-[11px] flex items-center justify-center font-bold">
-                      2
-                    </span>
-                    TPP dan Informasi
-                  </div>
-                  <ul className="text-slate-600 space-y-1 list-disc list-inside text-[11px]">
-                    <li>Menerima data pasien dari ruangan</li>
-                    <li>Input <strong>Pembiayaan</strong> (BPJS/Umum/Asuransi)</li>
-                    <li>Input <strong>Hak Kelas</strong> (Kelas 1-3, VIP, VVIP)</li>
-                    <li>Input <strong>Naik Kelas</strong> (Ya/Tidak) & <strong>Titip Kelas</strong> (Ya/Tidak)</li>
-                  </ul>
-                </div>
-
-                {/* Step 3 */}
-                <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-200/60 space-y-1.5">
-                  <div className="font-bold text-emerald-900 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-emerald-700 text-white text-[11px] flex items-center justify-center font-bold">
-                      3
-                    </span>
-                    Kasir & Billing
-                  </div>
-                  <ul className="text-slate-600 space-y-1 list-disc list-inside text-[11px]">
-                    <li>Menerima data yang sudah divalidasi TPP</li>
-                    <li>Verifikasi rincian biaya / kelengkapan berkas klaim</li>
-                    <li>Klik <strong>Finalisasi Pemulangan</strong> (Status langsung terhubung kembali ke ruangan)</li>
-                  </ul>
-                </div>
-
-              </div>
-            </section>
           </>
         )}
 
@@ -384,7 +371,7 @@ export default function App() {
       {/* 1. Modal Input Pasien Ruangan */}
       {isInputRuanganOpen && (
         <RuanganInputModal
-          ruanganAwal={selectedRuangan !== 'all' ? selectedRuangan : undefined}
+          ruanganAwal={currentUser.ruangan || (selectedRuangan !== 'all' ? selectedRuangan : undefined)}
           ruanganList={masterSettings.daftarRuangan}
           dpjpList={masterSettings.daftarDpjp}
           caraKeluarList={masterSettings.daftarCaraKeluar}

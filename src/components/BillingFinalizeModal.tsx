@@ -17,7 +17,7 @@ export const BillingFinalizeModal: React.FC<BillingFinalizeModalProps> = ({
     patient.billingData?.nomorKuitansi || `KWT/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${Math.floor(1000 + Math.random() * 9000)}`
   );
   const [petugasBilling, setPetugasBilling] = useState(
-    patient.billingData?.finalizedBy || 'Kasir Billing'
+    patient.billingData?.finalizedBy || 'Billing'
   );
   const [catatanBilling, setCatatanBilling] = useState(
     patient.billingData?.catatanBilling || 'Administrasi biaya dan klaim lunas diselesaikan.'
@@ -30,7 +30,7 @@ export const BillingFinalizeModal: React.FC<BillingFinalizeModalProps> = ({
 
     const data: BillingFinalizationData = {
       finalizedAt: formattedDate,
-      finalizedBy: petugasBilling.trim() || 'Kasir Billing',
+      finalizedBy: petugasBilling.trim() || 'Billing',
       nomorKuitansi: nomorKuitansi.trim() || undefined,
       catatanBilling: catatanBilling.trim() || undefined,
     };
@@ -50,7 +50,7 @@ export const BillingFinalizeModal: React.FC<BillingFinalizeModalProps> = ({
               <Receipt className="w-5 h-5 text-emerald-200" />
             </div>
             <div>
-              <h2 className="text-base font-bold">Finalisasi Pemulangan (Billing / Kasir)</h2>
+              <h2 className="text-base font-bold">Finalisasi Pemulangan (Billing)</h2>
               <p className="text-xs text-emerald-100">Konfirmasi penyelesaian tagihan dan tutup berkas pemulangan</p>
             </div>
           </div>
@@ -147,13 +147,13 @@ export const BillingFinalizeModal: React.FC<BillingFinalizeModalProps> = ({
 
             <div>
               <label className="block font-bold text-slate-700 mb-1">
-                Petugas Kasir Billing:
+                Petugas Billing:
               </label>
               <input
                 type="text"
                 value={petugasBilling}
                 onChange={(e) => setPetugasBilling(e.target.value)}
-                placeholder="Nama Petugas Kasir"
+                placeholder="Nama Petugas Billing"
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 focus:outline-emerald-600"
               />
             </div>

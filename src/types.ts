@@ -1,5 +1,55 @@
 export type RoleType = 'ruangan' | 'tpp' | 'billing' | 'admin';
 
+export interface AuthUser {
+  id: string;
+  username: string;
+  namaLengkap: string;
+  role: RoleType;
+  ruangan?: string;
+  waktuLogin: string;
+}
+
+export interface UserAccountCredential {
+  id: string;
+  username: string;
+  nama: string;
+  pin: string;
+  role: RoleType;
+  ruanganDefault?: string;
+}
+
+export const DEFAULT_USER_ACCOUNTS: UserAccountCredential[] = [
+  {
+    id: 'user_ruangan',
+    username: 'ruangan',
+    nama: 'Petugas Ruang Rawat Inap',
+    pin: '1234',
+    role: 'ruangan',
+    ruanganDefault: 'Ruang Melati (Lantai 2)'
+  },
+  {
+    id: 'user_tpp',
+    username: 'tpp',
+    nama: 'Petugas TPP & Informasi',
+    pin: '1234',
+    role: 'tpp'
+  },
+  {
+    id: 'user_billing',
+    username: 'billing',
+    nama: 'Petugas Billing',
+    pin: '1234',
+    role: 'billing'
+  },
+  {
+    id: 'user_admin',
+    username: 'admin',
+    nama: 'Administrator RS',
+    pin: '1234',
+    role: 'admin'
+  }
+];
+
 export type KategoriRuangan = 
   | 'Rawat Inap Reguler'
   | 'VIP / VVIP'
