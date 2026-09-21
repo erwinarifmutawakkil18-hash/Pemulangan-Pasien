@@ -33,6 +33,9 @@ interface RoleNavbarProps {
   countPasienTanggal: number;
   scopeMode: ScopeMode;
   onScopeModeChange: (mode: ScopeMode) => void;
+  supabaseStatus?: 'connecting' | 'connected' | 'error';
+  isSyncing?: boolean;
+  onManualSyncSupabase?: () => void;
 }
 
 export const RoleNavbar: React.FC<RoleNavbarProps> = ({
@@ -59,6 +62,9 @@ export const RoleNavbar: React.FC<RoleNavbarProps> = ({
   countPasienTanggal,
   scopeMode,
   onScopeModeChange,
+  supabaseStatus,
+  isSyncing,
+  onManualSyncSupabase,
 }) => {
   const displayRuangan = ruanganList ? ruanganList.filter(r => r.aktif).map(r => r.nama) : DAFTAR_RUANGAN;
   const userRole = currentUser?.role || activeRole;
@@ -132,6 +138,42 @@ export const RoleNavbar: React.FC<RoleNavbarProps> = ({
             >
               <KeyRound className="w-3.5 h-3.5 text-teal-600" />
               <span className="hidden sm:inline">Ganti PIN</span>
+            </button>
+          )}
+
+          {/* Supabase Status Indicator */}
+          {supabaseStatus && (
+            <button
+              onClick={onManualSyncSupabase}
+              disabled={isSyncing}
+              title={`Status Cloud Database: ${
+                supabaseStatus === 'connected'
+                  ? 'Terhubung ke Supabase (Klik untuk sinkronkan data)'
+                  : supabaseStatus === 'connecting'
+                  ? 'Sedang menghubungi Supabase...'
+                  : 'Mode Offline / Gagal terhubung (Klik untuk mencoba ulang)'
+              }`}
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition shadow-2xs ${
+                supabaseStatus === 'connected'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                  : supabaseStatus === 'connecting'
+                  ? 'bg-amber-50 text-amber-800 border-amber-200 animate-pulse'
+                  : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+              }`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  supabaseStatus === 'connected'
+                    ? 'bg-emerald-500 ring-2 ring-emerald-200'
+                    : supabaseStatus === 'connecting'
+                    ? 'bg-amber-500'
+                    : 'bg-slate-400'
+                }`}
+              />
+              <span className="hidden sm:inline">
+                {isSyncing ? 'Sinkron...' : supabaseStatus === 'connected' ? 'Supabase' : 'Offline'}
+              </span>
+              <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin text-teal-700' : 'text-slate-400'}`} />
             </button>
           )}
 

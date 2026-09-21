@@ -18,6 +18,13 @@ import {
   Building2, CreditCard, Receipt, CheckCircle2, 
   Clock, ShieldCheck 
 } from 'lucide-react';
+import { 
+  supabase, 
+  testSupabaseConnection, 
+  fetchDischargesFromSupabase, 
+  upsertDischargeToSupabase, 
+  fetchMasterDpjpFromSupabase 
+} from './lib/supabase';
 
 const STORAGE_KEY = 'sim_pemulangan_pasien_3level_v4';
 const SETTINGS_STORAGE_KEY = 'sim_master_settings_v4';
@@ -128,6 +135,80 @@ export default function App() {
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Supabase Cloud State
+  const [supabaseStatus, setSupabaseStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+
+  // Inisialisasi dan Sinkronisasi Otomatis dengan Supabase Cloud
+  useEffect(() => {
+    let isMounted = true;
+
+    const initSupabaseData = async () => {
+      try {
+        setSupabaseStatus('connecting');
+        const conn = await testSupabaseConnection();
+        if (!isMounted) return;
+
+        if (conn.ok) {
+          setSupabaseStatus('connected');
+          // 1. Ambil data pasien dari tabel patient_discharges
+          try {
+            const cloudPatients = await fetchDischargesFromSupabase();
+            if (isMounted && cloudPatients && cloudPatients.length > 0) {
+              setPatients(cloudPatients);
+            }
+          } catch (e) {
+            console.warn('Gagal memuat pasien dari cloud:', e);
+          }
+
+          // 2. Ambil master DPJP dari tabel master_dpjp
+          try {
+            const cloudDpjps = await fetchMasterDpjpFromSupabase();
+            if (isMounted && cloudDpjps && cloudDpjps.length > 0) {
+              setMasterSettings(prev => ({
+                ...prev,
+                daftarDpjp: cloudDpjps
+              }));
+            }
+          } catch (e) {
+            console.warn('Gagal memuat master DPJP dari cloud:', e);
+          }
+        } else {
+          setSupabaseStatus('error');
+        }
+      } catch (err) {
+        console.warn('Koneksi Supabase belum siap, mode lokal tetap aktif:', err);
+        if (isMounted) setSupabaseStatus('error');
+      }
+    };
+
+    initSupabaseData();
+
+    // Berlangganan Realtime Postgres Changes
+    const channel = supabase
+      .channel('realtime_patient_discharges')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'patient_discharges' },
+        async () => {
+          try {
+            const refreshed = await fetchDischargesFromSupabase();
+            if (isMounted && refreshed) {
+              setPatients(refreshed);
+            }
+          } catch (err) {
+            console.warn('Gagal memperbarui data dari Realtime Supabase:', err);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   // Sync user session to localStorage
   useEffect(() => {
     try {
@@ -210,43 +291,96 @@ export default function App() {
   };
 
   // 1. Input Pasien dari Ruangan
-  const handleAddPatientFromRuangan = (newPatient: PatientDischarge) => {
+  const handleAddPatientFromRuangan = async (newPatient: PatientDischarge) => {
     setPatients((prev) => [newPatient, ...prev]);
     showToast(`Pasien ${newPatient.namaPasien} (RM: ${newPatient.noRm}) berhasil dikirim ke antrean TPP & Informasi.`);
+
+    try {
+      setIsSyncing(true);
+      const saved = await upsertDischargeToSupabase(newPatient);
+      setPatients((prev) => prev.map((p) => (p.id === newPatient.id ? saved : p)));
+      setSupabaseStatus('connected');
+    } catch (err) {
+      console.warn('Data disimpan secara lokal (gagal sinkron cloud):', err);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   // 2. Validasi dari TPP & Informasi
-  const handleValidateTpp = (patientId: string, tppData: TppValidationData) => {
+  const handleValidateTpp = async (patientId: string, tppData: TppValidationData) => {
+    let updatedTarget: PatientDischarge | null = null;
     setPatients((prev) =>
       prev.map((p) => {
         if (p.id === patientId) {
-          return {
+          updatedTarget = {
             ...p,
             tppData,
             statusAlur: p.statusAlur === 'selesai' ? 'selesai' : 'menunggu_billing',
           };
+          return updatedTarget;
         }
         return p;
       })
     );
     showToast(`Data TPP berhasil divalidasi dan diteruskan ke antrean Kasir Billing.`);
+
+    if (updatedTarget) {
+      upsertDischargeToSupabase(updatedTarget).catch((err) =>
+        console.warn('Gagal update ke Supabase:', err)
+      );
+    }
   };
 
   // 3. Finalisasi dari Kasir Billing
-  const handleFinalizeBilling = (patientId: string, billingData: BillingFinalizationData) => {
+  const handleFinalizeBilling = async (patientId: string, billingData: BillingFinalizationData) => {
+    let updatedTarget: PatientDischarge | null = null;
     setPatients((prev) =>
       prev.map((p) => {
         if (p.id === patientId) {
-          return {
+          updatedTarget = {
             ...p,
             billingData,
             statusAlur: 'selesai',
           };
+          return updatedTarget;
         }
         return p;
       })
     );
     showToast(`Pemulangan pasien berhasil difinalisasi oleh Billing! Status kini selesai di semua level.`);
+
+    if (updatedTarget) {
+      upsertDischargeToSupabase(updatedTarget).catch((err) =>
+        console.warn('Gagal update ke Supabase:', err)
+      );
+    }
+  };
+
+  // Sinkronisasi Manual Supabase
+  const handleManualSyncSupabase = async () => {
+    setIsSyncing(true);
+    try {
+      const conn = await testSupabaseConnection();
+      if (!conn.ok) {
+        throw new Error(conn.message);
+      }
+      const data = await fetchDischargesFromSupabase();
+      if (data) {
+        setPatients(data);
+      }
+      const dpjps = await fetchMasterDpjpFromSupabase();
+      if (dpjps && dpjps.length > 0) {
+        setMasterSettings(prev => ({ ...prev, daftarDpjp: dpjps }));
+      }
+      setSupabaseStatus('connected');
+      showToast('Sinkronisasi data Supabase Cloud berhasil.');
+    } catch (err: any) {
+      setSupabaseStatus('error');
+      showToast(`Gagal sinkronisasi Supabase: ${err?.message || 'Koneksi terputus'}`);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   // Reset data ke default
@@ -420,6 +554,9 @@ export default function App() {
           onStatusFilterChange={setStatusFilter}
           scopeMode={scopeMode}
           onScopeModeChange={setScopeMode}
+          supabaseStatus={supabaseStatus}
+          isSyncing={isSyncing}
+          onManualSyncSupabase={handleManualSyncSupabase}
         />
 
         {/* Master & Hak Akses Administrator View */}
