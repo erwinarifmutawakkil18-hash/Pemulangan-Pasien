@@ -262,32 +262,18 @@ export const TppValidationModal: React.FC<TppValidationModalProps> = ({
             )}
           </div>
 
-          {/* Petugas TPP & Catatan Tambahan */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block font-semibold text-slate-600 mb-1">
-                Petugas TPP:
-              </label>
-              <input
-                type="text"
-                value={petugasTpp}
-                onChange={(e) => setPetugasTpp(e.target.value)}
-                placeholder="Nama Petugas TPP"
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 text-slate-800 focus:outline-sky-600"
-              />
-            </div>
-            <div>
-              <label className="block font-semibold text-slate-600 mb-1">
-                Catatan TPP / No. SEP BPJS:
-              </label>
-              <input
-                type="text"
-                value={catatanTpp}
-                onChange={(e) => setCatatanTpp(e.target.value)}
-                placeholder="cth: SEP sudah terbit / berkas lengkap"
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 text-slate-800 focus:outline-sky-600"
-              />
-            </div>
+          {/* Catatan TPP / No. SEP BPJS (Nama Petugas Dihilangkan) */}
+          <div className="pt-1">
+            <label className="block font-semibold text-slate-600 mb-1">
+              Catatan TPP / No. SEP BPJS:
+            </label>
+            <input
+              type="text"
+              value={catatanTpp}
+              onChange={(e) => setCatatanTpp(e.target.value)}
+              placeholder="cth: SEP sudah terbit / berkas lengkap"
+              className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-800 focus:outline-sky-600"
+            />
           </div>
 
           {/* Action Buttons */}

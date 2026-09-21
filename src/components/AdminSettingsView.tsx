@@ -6,7 +6,7 @@ import {
   Download, Upload
 } from 'lucide-react';
 import { 
-  MasterSettings, RuanganItem, KategoriRuangan 
+  MasterSettings, RuanganItem, KategoriRuangan, BangsalId, DAFTAR_BANGSAL, DEFAULT_USER_ACCOUNTS 
 } from '../types';
 
 interface AdminSettingsViewProps {
@@ -45,6 +45,7 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
 
   // New item inputs
   const [newRuanganNama, setNewRuanganNama] = useState('');
+  const [newRuanganBangsal, setNewRuanganBangsal] = useState<BangsalId>('general');
   const [newRuanganKategori, setNewRuanganKategori] = useState<KategoriRuangan>('Rawat Inap Reguler');
   const [newRuanganLantai, setNewRuanganLantai] = useState('');
 
@@ -76,6 +77,7 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
     const item: RuanganItem = {
       id: `rng-${Date.now()}`,
       nama: newRuanganNama.trim(),
+      bangsalId: newRuanganBangsal,
       kategori: newRuanganKategori,
       lantai: newRuanganLantai.trim() || undefined,
       aktif: true,
@@ -88,6 +90,18 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
     onSaveSettings(updated);
     setNewRuanganNama('');
     setNewRuanganLantai('');
+  };
+
+  // Ubah alokasi Bangsal sebuah Ruangan
+  const handleChangeRuanganBangsal = (id: string, newBangsalId: BangsalId) => {
+    const updated = {
+      ...localSettings,
+      daftarRuangan: localSettings.daftarRuangan.map((r) =>
+        r.id === id ? { ...r, bangsalId: newBangsalId } : r
+      ),
+    };
+    setLocalSettings(updated);
+    onSaveSettings(updated);
   };
 
   // Toggle Ruangan Aktif
@@ -353,14 +367,14 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
       {/* Tab Contents */}
       <div className="p-6 text-xs text-slate-800">
         
-        {/* 1. MASTER RUANGAN DENGAN KATEGORI */}
+        {/* 1. MASTER RUANGAN DENGAN KATEGORI & BANGSAL */}
         {adminTab === 'ruangan' && (
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <h3 className="font-bold text-sm text-slate-900">Pengaturan Master Ruangan Rawat Inap</h3>
+                <h3 className="font-bold text-sm text-slate-900">Pengaturan Master Ruangan & Pembagian Bangsal</h3>
                 <p className="text-slate-500">
-                  Tambah dan kelompokkan berbagai jenis ruangan (Reguler, VIP/VVIP, Intensif ICU/PICU, Kebidanan, Isolasi).
+                  Kelola ruangan dan alokasi kamar ke 7 Bangsal (General, Maternal, Paviliun & Bedah, Anak, Kamar Bersalin, Intensive, Neonatologi).
                 </p>
               </div>
             </div>
@@ -371,17 +385,32 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
                 + Tambah Ruangan Rawat Inap Baru:
               </span>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div className="sm:col-span-1">
-                  <label className="block font-medium text-slate-600 mb-1">Nama Ruangan:</label>
+                  <label className="block font-medium text-slate-600 mb-1">Nama Ruangan / Kamar:</label>
                   <input
                     type="text"
                     required
                     value={newRuanganNama}
                     onChange={(e) => setNewRuanganNama(e.target.value)}
-                    placeholder="cth: Ruang Cempaka (Kelas 2)"
+                    placeholder="cth: Cempaka 5"
                     className="w-full bg-white border border-slate-300 rounded-xl p-2 focus:outline-indigo-600"
                   />
+                </div>
+
+                <div>
+                  <label className="block font-medium text-slate-600 mb-1">Alokasi R. Rawat Inap:</label>
+                  <select
+                    value={newRuanganBangsal}
+                    onChange={(e) => setNewRuanganBangsal(e.target.value as BangsalId)}
+                    className="w-full bg-white border border-slate-300 rounded-xl p-2 focus:outline-indigo-600 font-semibold text-teal-800"
+                  >
+                    {DAFTAR_BANGSAL.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        R. {b.nama}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
@@ -406,7 +435,7 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
                       type="text"
                       value={newRuanganLantai}
                       onChange={(e) => setNewRuanganLantai(e.target.value)}
-                      placeholder="cth: Lantai 3 Gedung B"
+                      placeholder="cth: Lantai 2"
                       className="w-full bg-white border border-slate-300 rounded-xl p-2 focus:outline-indigo-600"
                     />
                     <button
@@ -420,58 +449,99 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
               </div>
             </form>
 
-            {/* List Ruangan Berdasarkan Kategori */}
+            {/* List Ruangan Dikelompokkan Berdasarkan 7 R. Rawat Inap */}
             <div className="space-y-4">
-              {KATEGORI_RUANGAN_OPTIONS.map((kategori) => {
-                const roomsInKat = localSettings.daftarRuangan.filter((r) => r.kategori === kategori);
-                if (roomsInKat.length === 0) return null;
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                  <Layers className="w-4 h-4 text-teal-600" />
+                  <span>Daftar Pembagian Ruangan per R. Rawat Inap:</span>
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  Total {localSettings.daftarRuangan.length} Ruangan Terdaftar
+                </span>
+              </div>
+
+              {DAFTAR_BANGSAL.map((bangsal) => {
+                const roomsInBangsal = localSettings.daftarRuangan.filter(
+                  (r) => r.bangsalId === bangsal.id
+                );
 
                 return (
-                  <div key={kategori} className="border border-slate-200 rounded-2xl overflow-hidden">
-                    <div className="bg-slate-100/80 px-4 py-2 font-bold text-slate-800 flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        <Building2 className="w-3.5 h-3.5 text-indigo-600" />
-                        {kategori}
-                      </span>
-                      <span className="text-[11px] text-slate-500 font-normal">
-                        {roomsInKat.length} Ruangan
+                  <div key={bangsal.id} className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+                    <div className="bg-slate-100/90 px-4 py-2.5 font-bold text-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-200">
+                      <div className="flex items-center gap-2">
+                         <Building2 className="w-4 h-4 text-teal-700" />
+                        <span className="text-sm font-bold text-teal-950">R. {bangsal.nama}</span>
+                        {bangsal.keterangan && (
+                          <span className="text-[11px] font-normal text-slate-500 hidden md:inline">
+                            ({bangsal.keterangan})
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-teal-800 font-semibold bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-md self-start sm:self-auto">
+                        {roomsInBangsal.length} Kamar / Ruang
                       </span>
                     </div>
 
                     <div className="divide-y divide-slate-100 bg-white">
-                      {roomsInKat.map((room) => (
-                        <div key={room.id} className="p-3 px-4 flex items-center justify-between hover:bg-slate-50 transition">
-                          <div>
-                            <strong className="text-slate-900 block text-xs">{room.nama}</strong>
-                            <span className="text-[11px] text-slate-400">
-                              {room.lantai || 'Lantai tidak disetel'} • {room.aktif ? 'Aktif di Dropdown' : 'Dinonaktifkan'}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleToggleRuangan(room.id)}
-                              className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition ${
-                                room.aktif
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-slate-200 text-slate-600'
-                              }`}
-                            >
-                              {room.aktif ? 'Aktif' : 'Nonaktif'}
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteRuangan(room.id)}
-                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-                              title="Hapus Ruangan"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                      {roomsInBangsal.length === 0 ? (
+                        <div className="p-4 text-center text-xs text-slate-400 italic">
+                          Belum ada ruangan yang dialokasikan ke R. {bangsal.nama}.
                         </div>
-                      ))}
+                      ) : (
+                        roomsInBangsal.map((room) => (
+                          <div key={room.id} className="p-3 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-slate-50 transition">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <strong className="text-slate-900 text-xs">{room.nama}</strong>
+                                <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">
+                                  {room.kategori}
+                                </span>
+                              </div>
+                              <span className="text-[11px] text-slate-400">
+                                {room.lantai || 'Lantai tidak disetel'} • {room.aktif ? 'Aktif' : 'Dinonaktifkan'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2 self-end sm:self-auto">
+                              {/* Ubah R. Cepat */}
+                              <select
+                                value={room.bangsalId || bangsal.id}
+                                onChange={(e) => handleChangeRuanganBangsal(room.id, e.target.value as BangsalId)}
+                                className="text-[11px] bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-700 font-medium"
+                                title="Pindahkan ke R. lain"
+                              >
+                                {DAFTAR_BANGSAL.map((b) => (
+                                  <option key={b.id} value={b.id}>
+                                    Pindah: R. {b.nama}
+                                  </option>
+                                ))}
+                              </select>
+
+                              <button
+                                type="button"
+                                onClick={() => handleToggleRuangan(room.id)}
+                                className={`px-2.5 py-1 rounded-lg font-bold text-[11px] transition ${
+                                  room.aktif
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-slate-200 text-slate-600'
+                                }`}
+                              >
+                                {room.aktif ? 'Aktif' : 'Nonaktif'}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteRuangan(room.id)}
+                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                                title="Hapus Ruangan"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 );
@@ -732,6 +802,65 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
               >
                 {localSettings.kunciAksesRuangan ? 'Aktif (Terkunci)' : 'Bebas Pilih'}
               </button>
+            </div>
+
+            {/* Daftar Akun Login Berbasis R. & Unit */}
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <strong className="text-slate-800 block text-xs">Daftar Akun Pengguna Terdaftar (Per R. & Unit)</strong>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Akun login per R. rawat inap dan unit kerja (PIN Default: <code>1234</code>).
+                  </p>
+                </div>
+                <span className="text-[10px] bg-teal-100 text-teal-800 font-bold px-2 py-0.5 rounded-md">
+                  {DEFAULT_USER_ACCOUNTS.length} Akun
+                </span>
+              </div>
+
+              <div className="border border-slate-200 rounded-xl overflow-hidden bg-white text-[11px]">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-100/90 text-slate-600 border-b border-slate-200">
+                    <tr>
+                      <th className="p-2.5 font-bold">Unit / R. Rawat Inap</th>
+                      <th className="p-2.5 font-bold">Username Akun</th>
+                      <th className="p-2.5 font-bold">Peran</th>
+                      <th className="p-2.5 font-bold">Kamar Terhubung</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {DEFAULT_USER_ACCOUNTS.map((acc) => {
+                      const rooms = acc.bangsalId 
+                        ? localSettings.daftarRuangan.filter(r => r.bangsalId === acc.bangsalId && r.aktif)
+                        : [];
+
+                      return (
+                        <tr key={acc.id} className="hover:bg-slate-50">
+                          <td className="p-2.5 font-semibold text-slate-800">
+                            {acc.nama}
+                          </td>
+                          <td className="p-2.5 font-mono text-teal-700 font-bold">
+                            {acc.username}
+                          </td>
+                          <td className="p-2.5 text-slate-600 capitalize">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              acc.role === 'ruangan' ? 'bg-teal-50 text-teal-800 border border-teal-200' :
+                              acc.role === 'tpp' ? 'bg-sky-50 text-sky-800 border border-sky-200' :
+                              acc.role === 'billing' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
+                              'bg-indigo-50 text-indigo-800 border border-indigo-200'
+                            }`}>
+                              {acc.role === 'ruangan' ? 'R. Rawat Inap' : acc.role}
+                            </span>
+                          </td>
+                          <td className="p-2.5 text-slate-500">
+                            {acc.bangsalId ? `${rooms.length} Kamar Aktif` : 'Seluruh Pasien'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Cadangkan & Pulihkan Data Database (Khusus Admin) */}

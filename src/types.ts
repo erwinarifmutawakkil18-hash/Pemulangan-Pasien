@@ -1,10 +1,26 @@
 export type RoleType = 'ruangan' | 'tpp' | 'billing' | 'admin';
 
+export type BangsalId = 
+  | 'general'
+  | 'maternal'
+  | 'paviliun_bedah'
+  | 'anak'
+  | 'kamar_bersalin'
+  | 'intensive'
+  | 'neonatologi';
+
+export interface BangsalItem {
+  id: BangsalId;
+  nama: string; // Misal: "General", "Maternal", dll.
+  keterangan?: string;
+}
+
 export interface AuthUser {
   id: string;
   username: string;
   namaLengkap: string;
   role: RoleType;
+  bangsalId?: BangsalId;
   ruangan?: string;
   waktuLogin: string;
 }
@@ -15,29 +31,97 @@ export interface UserAccountCredential {
   nama: string;
   pin: string;
   role: RoleType;
+  bangsalId?: BangsalId;
   ruanganDefault?: string;
 }
 
+export const DAFTAR_BANGSAL: BangsalItem[] = [
+  { id: 'general', nama: 'General', keterangan: 'Cempaka 1-4, Bougenvile 1-2, Asoka 1-3, Tulip 3-4, Lily' },
+  { id: 'maternal', nama: 'Maternal', keterangan: 'Dahlia 1-4, Melati 1-3, Kenanga 1-2, Tulip 1' },
+  { id: 'paviliun_bedah', nama: 'Paviliun & Bedah', keterangan: 'Anggrek 1-5, Mawar 1-3, Edelweis 1-2' },
+  { id: 'anak', nama: 'Anak', keterangan: 'Panda 1-3, Pinguin 1-4, Kelinci 1-2, Tulip 5-6' },
+  { id: 'kamar_bersalin', nama: 'Kamar Bersalin', keterangan: 'Observasi 1, R. Tindakan' },
+  { id: 'intensive', nama: 'Intensive', keterangan: 'HCU, ICU, PICU' },
+  { id: 'neonatologi', nama: 'Neonatologi', keterangan: 'Neonatologi 1-2, NICU, Tulip 2' }
+];
+
 export const DEFAULT_USER_ACCOUNTS: UserAccountCredential[] = [
+  // 7 Akun User R. (Ruang Rawat Inap)
   {
-    id: 'user_ruangan',
-    username: 'ruangan',
-    nama: 'Petugas Ruang Rawat Inap',
+    id: 'user_bangsal_general',
+    username: 'r_general',
+    nama: 'R. General',
     pin: '1234',
     role: 'ruangan',
-    ruanganDefault: 'Ruang Melati (Lantai 2)'
+    bangsalId: 'general',
+    ruanganDefault: 'Cempaka 1'
   },
+  {
+    id: 'user_bangsal_maternal',
+    username: 'r_maternal',
+    nama: 'R. Maternal',
+    pin: '1234',
+    role: 'ruangan',
+    bangsalId: 'maternal',
+    ruanganDefault: 'Dahlia 1'
+  },
+  {
+    id: 'user_bangsal_paviliun_bedah',
+    username: 'r_paviliun_bedah',
+    nama: 'R. Paviliun & Bedah',
+    pin: '1234',
+    role: 'ruangan',
+    bangsalId: 'paviliun_bedah',
+    ruanganDefault: 'Anggrek 1'
+  },
+  {
+    id: 'user_bangsal_anak',
+    username: 'r_anak',
+    nama: 'R. Anak',
+    pin: '1234',
+    role: 'ruangan',
+    bangsalId: 'anak',
+    ruanganDefault: 'Panda 1'
+  },
+  {
+    id: 'user_bangsal_kamar_bersalin',
+    username: 'r_bersalin',
+    nama: 'R. Kamar Bersalin',
+    pin: '1234',
+    role: 'ruangan',
+    bangsalId: 'kamar_bersalin',
+    ruanganDefault: 'Observasi 1'
+  },
+  {
+    id: 'user_bangsal_intensive',
+    username: 'r_intensive',
+    nama: 'R. Intensive',
+    pin: '1234',
+    role: 'ruangan',
+    bangsalId: 'intensive',
+    ruanganDefault: 'ICU'
+  },
+  {
+    id: 'user_bangsal_neonatologi',
+    username: 'r_neonatologi',
+    nama: 'R. Neonatologi',
+    pin: '1234',
+    role: 'ruangan',
+    bangsalId: 'neonatologi',
+    ruanganDefault: 'Neonatologi 1'
+  },
+  // Unit TPP, Billing, Admin
   {
     id: 'user_tpp',
     username: 'tpp',
-    nama: 'Petugas TPP & Informasi',
+    nama: 'TPP & Informasi',
     pin: '1234',
     role: 'tpp'
   },
   {
     id: 'user_billing',
     username: 'billing',
-    nama: 'Petugas Billing',
+    nama: 'Billing & Kasir',
     pin: '1234',
     role: 'billing'
   },
@@ -60,6 +144,7 @@ export type KategoriRuangan =
 export interface RuanganItem {
   id: string;
   nama: string;
+  bangsalId: BangsalId;
   kategori: KategoriRuangan;
   lantai?: string;
   aktif: boolean;
@@ -77,7 +162,7 @@ export interface MasterSettings {
 
 export type CaraKeluar = 
   | 'Persetujuan Dokter / Sembuh'
-  | 'Membaik (Rawat Jalan)'
+  | 'Membaik'
   | 'Atas Permintaan Sendiri (APS)'
   | 'Rujuk ke RS Lain'
   | 'Meninggal < 48 Jam'
@@ -92,6 +177,50 @@ export type PembiayaanType =
   | 'Jamkesda / SPM';
 
 export type HakKelasType = 'Kelas 1' | 'Kelas 2' | 'Kelas 3' | 'VIP' | 'VVIP';
+
+export const DAFTAR_DPJP: string[] = [
+  'dr. Totok Mardiyanto, Sp. B',
+  'dr. Budi Setiawan, Sp. B',
+  'dr. Nanik Triana Kartikasari, Sp. PD',
+  'dr. Vonny Mariany Deckert, Sp.A., M. Biomed',
+  'dr. Nur Rochmah Kusuma Rahayu, Sp.A',
+  'dr. Rahajeng Ayu Pramudita, Sp. OG',
+  'dr. Siti Aisyah, Sp. OG',
+  'dr. Kresna Nugraha Sp, Sp.JP',
+  'dr. Eko Prasetyo, Sp. OT',
+  'dr. Dewi Sartika, Sp. S',
+  'dr. Andi Wijaya, Sp. P',
+  'dr. Hendra Kusuma, Sp. THT-KL',
+  'dr. Maya Indriani, Sp. M',
+  'dr. Rizky Pratama, Sp. An',
+  'dr. Wahyu Hidayat, Sp. Rad'
+];
+
+export const DAFTAR_CARA_KELUAR: CaraKeluar[] = [
+  'Persetujuan Dokter / Sembuh',
+  'Membaik',
+  'Atas Permintaan Sendiri (APS)',
+  'Rujuk ke RS Lain',
+  'Meninggal < 48 Jam',
+  'Meninggal >= 48 Jam',
+  'Lain-lain / Melarikan Diri'
+];
+
+export const DAFTAR_PEMBIAYAAN: PembiayaanType[] = [
+  'BPJS Kesehatan',
+  'Umum / Mandiri',
+  'Asuransi Swasta',
+  'Jaminan Perusahaan',
+  'Jamkesda / SPM'
+];
+
+export const DAFTAR_HAK_KELAS: HakKelasType[] = [
+  'Kelas 1',
+  'Kelas 2',
+  'Kelas 3',
+  'VIP',
+  'VVIP'
+];
 
 export type StatusAlur = 
   | 'menunggu_tpp'        // Baru diinput ruangan, menunggu validasi TPP
@@ -142,73 +271,75 @@ export interface PatientDischarge {
   catatanRuangan?: string;
 }
 
-export const DAFTAR_RUANGAN: string[] = [
-  'Ruang Melati (Lantai 2)',
-  'Ruang Mawar (Lantai 2)',
-  'Ruang Dahlia (Lantai 3)',
-  'Ruang Flamboyan (Lantai 3)',
-  'Ruang Kenanga (Lantai 4)',
-  'Ruang Anggrek VIP (Lantai 4)',
-  'Ruang Teratai VVIP (Lantai 5)',
-  'ICU (Intensive Care Unit)',
-  'ICCU (Intensive Cardiac Care)',
-  'NICU / PICU',
-  'Ruang Kebidanan & Bersalin (VK)'
-];
-
-export const DAFTAR_DPJP: string[] = [
-  'dr. Hendra Pratama, Sp.PD (Penyakit Dalam)',
-  'dr. Maya Anggraini, Sp.B (Bedah Umum)',
-  'dr. Bambang Irawan, Sp.JP (Jantung & Pembuluh Darah)',
-  'dr. Fitriani, Sp.OG (Kebidanan & Kandungan)',
-  'dr. Agus Setiawan, Sp.A (Anak)',
-  'dr. Ratna Dewi, Sp.S (Saraf / Neurologi)',
-  'dr. Dian Kusuma, Sp.OT (Ortopedi & Traumatologi)',
-  'dr. Eko Wahyudi, Sp.P (Paru & Pernapasan)',
-  'dr. Rini Suryani, Sp.M (Mata)',
-  'dr. Taufik Hidayat, Sp.THT-KL (THT)'
-];
-
-export const DAFTAR_CARA_KELUAR: CaraKeluar[] = [
-  'Persetujuan Dokter / Sembuh',
-  'Membaik (Rawat Jalan)',
-  'Atas Permintaan Sendiri (APS)',
-  'Rujuk ke RS Lain',
-  'Meninggal < 48 Jam',
-  'Meninggal >= 48 Jam',
-  'Lain-lain / Melarikan Diri'
-];
-
-export const DAFTAR_PEMBIAYAAN: PembiayaanType[] = [
-  'BPJS Kesehatan',
-  'Umum / Mandiri',
-  'Asuransi Swasta',
-  'Jaminan Perusahaan',
-  'Jamkesda / SPM'
-];
-
-export const DAFTAR_HAK_KELAS: HakKelasType[] = [
-  'Kelas 1',
-  'Kelas 2',
-  'Kelas 3',
-  'VIP',
-  'VVIP'
-];
-
 export const DEFAULT_RUANGAN_ITEMS: RuanganItem[] = [
-  { id: 'rng-1', nama: 'Ruang Melati (Kelas 2 & 3)', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 2', aktif: true },
-  { id: 'rng-2', nama: 'Ruang Mawar (Kelas 1 & 2)', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 2', aktif: true },
-  { id: 'rng-3', nama: 'Ruang Dahlia (Kelas 1 & VIP)', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 3', aktif: true },
-  { id: 'rng-4', nama: 'Ruang Flamboyan (Anak)', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 3', aktif: true },
-  { id: 'rng-5', nama: 'Ruang Kenanga (Bedah)', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 4', aktif: true },
-  { id: 'rng-6', nama: 'Ruang Anggrek VIP', kategori: 'VIP / VVIP', lantai: 'Lantai 4', aktif: true },
-  { id: 'rng-7', nama: 'Ruang Teratai VVIP & Presidential', kategori: 'VIP / VVIP', lantai: 'Lantai 5', aktif: true },
-  { id: 'rng-8', nama: 'ICU (Intensive Care Unit)', kategori: 'Perawatan Intensif (ICU/ICCU/PICU/NICU)', lantai: 'Lantai 2', aktif: true },
-  { id: 'rng-9', nama: 'ICCU (Intensive Cardiac Care Unit)', kategori: 'Perawatan Intensif (ICU/ICCU/PICU/NICU)', lantai: 'Lantai 2', aktif: true },
-  { id: 'rng-10', nama: 'NICU / PICU (Neonatal/Pediatric)', kategori: 'Perawatan Intensif (ICU/ICCU/PICU/NICU)', lantai: 'Lantai 3', aktif: true },
-  { id: 'rng-11', nama: 'Ruang Kebidanan & Bersalin (VK)', kategori: 'Kebidanan / Bersalin', lantai: 'Lantai 1', aktif: true },
-  { id: 'rng-12', nama: 'Ruang Isolasi Tekanan Negatif', kategori: 'Isolasi Khusus', lantai: 'Lantai 1', aktif: true }
+  // 1. Bangsal General
+  { id: 'rng-gen-1', nama: 'Cempaka 1', bangsalId: 'general', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 1', aktif: true },
+  { id: 'rng-gen-2', nama: 'Cempaka 2', bangsalId: 'general', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 1', aktif: true },
+  { id: 'rng-gen-3', nama: 'Cempaka 3', bangsalId: 'general', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 1', aktif: true },
+  { id: 'rng-gen-4', nama: 'Cempaka 4', bangsalId: 'general', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 1', aktif: true },
+  { id: 'rng-gen-5', nama: 'Bougenvile 1', bangsalId: 'general', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 1', aktif: true },
+  { id: 'rng-gen-6', nama: 'Bougenvile 2', bangsalId: 'general', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 1', aktif: true },
+  { id: 'rng-gen-7', nama: 'Asoka 1', bangsalId: 'general', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-gen-8', nama: 'Asoka 2', bangsalId: 'general', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-gen-9', nama: 'Asoka 3', bangsalId: 'general', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-gen-10', nama: 'Tulip 3', bangsalId: 'general', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-gen-11', nama: 'Tulip 4', bangsalId: 'general', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-gen-12', nama: 'Lily', bangsalId: 'general', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 2', aktif: true },
+
+  // 2. Bangsal Maternal
+  { id: 'rng-mat-1', nama: 'Dahlia 1', bangsalId: 'maternal', kategori: 'Kebidanan / Bersalin', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-mat-2', nama: 'Dahlia 2', bangsalId: 'maternal', kategori: 'Kebidanan / Bersalin', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-mat-3', nama: 'Dahlia 3', bangsalId: 'maternal', kategori: 'Kebidanan / Bersalin', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-mat-4', nama: 'Dahlia 4', bangsalId: 'maternal', kategori: 'Kebidanan / Bersalin', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-mat-5', nama: 'Melati 1', bangsalId: 'maternal', kategori: 'Kebidanan / Bersalin', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-mat-6', nama: 'Melati 2', bangsalId: 'maternal', kategori: 'Kebidanan / Bersalin', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-mat-7', nama: 'Melati 3', bangsalId: 'maternal', kategori: 'Kebidanan / Bersalin', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-mat-8', nama: 'Kenanga 1', bangsalId: 'maternal', kategori: 'Kebidanan / Bersalin', lantai: 'Lantai 3', aktif: true },
+  { id: 'rng-mat-9', nama: 'Kenanga 2', bangsalId: 'maternal', kategori: 'Kebidanan / Bersalin', lantai: 'Lantai 3', aktif: true },
+  { id: 'rng-mat-10', nama: 'Tulip 1', bangsalId: 'maternal', kategori: 'Kebidanan / Bersalin', lantai: 'Lantai 3', aktif: true },
+
+  // 3. Bangsal Paviliun & Bedah
+  { id: 'rng-pbd-1', nama: 'Anggrek 1', bangsalId: 'paviliun_bedah', kategori: 'VIP / VVIP', lantai: 'Lantai 3', aktif: true },
+  { id: 'rng-pbd-2', nama: 'Anggrek 2', bangsalId: 'paviliun_bedah', kategori: 'VIP / VVIP', lantai: 'Lantai 3', aktif: true },
+  { id: 'rng-pbd-3', nama: 'Anggrek 3', bangsalId: 'paviliun_bedah', kategori: 'VIP / VVIP', lantai: 'Lantai 3', aktif: true },
+  { id: 'rng-pbd-4', nama: 'Anggrek 4', bangsalId: 'paviliun_bedah', kategori: 'VIP / VVIP', lantai: 'Lantai 3', aktif: true },
+  { id: 'rng-pbd-5', nama: 'Anggrek 5', bangsalId: 'paviliun_bedah', kategori: 'VIP / VVIP', lantai: 'Lantai 3', aktif: true },
+  { id: 'rng-pbd-6', nama: 'Mawar 1', bangsalId: 'paviliun_bedah', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 3', aktif: true },
+  { id: 'rng-pbd-7', nama: 'Mawar 2', bangsalId: 'paviliun_bedah', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 3', aktif: true },
+  { id: 'rng-pbd-8', nama: 'Mawar 3', bangsalId: 'paviliun_bedah', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 3', aktif: true },
+  { id: 'rng-pbd-9', nama: 'Edelweis 1', bangsalId: 'paviliun_bedah', kategori: 'VIP / VVIP', lantai: 'Lantai 4', aktif: true },
+  { id: 'rng-pbd-10', nama: 'Edelweis 2', bangsalId: 'paviliun_bedah', kategori: 'VIP / VVIP', lantai: 'Lantai 4', aktif: true },
+
+  // 4. Bangsal Anak
+  { id: 'rng-ank-1', nama: 'Panda 1', bangsalId: 'anak', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-ank-2', nama: 'Panda 2', bangsalId: 'anak', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-ank-3', nama: 'Panda 3', bangsalId: 'anak', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-ank-4', nama: 'Pinguin 1', bangsalId: 'anak', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-ank-5', nama: 'Pinguin 2', bangsalId: 'anak', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-ank-6', nama: 'Pinguin 3', bangsalId: 'anak', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-ank-7', nama: 'Pinguin 4', bangsalId: 'anak', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-ank-8', nama: 'Kelinci 1', bangsalId: 'anak', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-ank-9', nama: 'Kelinci 2', bangsalId: 'anak', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-ank-10', nama: 'Tulip 5', bangsalId: 'anak', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-ank-11', nama: 'Tulip 6', bangsalId: 'anak', kategori: 'Rawat Inap Reguler', lantai: 'Lantai 2', aktif: true },
+
+  // 5. Kamar Bersalin
+  { id: 'rng-kbs-1', nama: 'Observasi 1', bangsalId: 'kamar_bersalin', kategori: 'Kebidanan / Bersalin', lantai: 'Lantai 1', aktif: true },
+  { id: 'rng-kbs-2', nama: 'R. Tindakan', bangsalId: 'kamar_bersalin', kategori: 'Kebidanan / Bersalin', lantai: 'Lantai 1', aktif: true },
+
+  // 6. Intensive
+  { id: 'rng-int-1', nama: 'HCU', bangsalId: 'intensive', kategori: 'Perawatan Intensif (ICU/ICCU/PICU/NICU)', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-int-2', nama: 'ICU', bangsalId: 'intensive', kategori: 'Perawatan Intensif (ICU/ICCU/PICU/NICU)', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-int-3', nama: 'PICU', bangsalId: 'intensive', kategori: 'Perawatan Intensif (ICU/ICCU/PICU/NICU)', lantai: 'Lantai 2', aktif: true },
+
+  // 7. Neonatologi
+  { id: 'rng-neo-1', nama: 'Neonatologi 1', bangsalId: 'neonatologi', kategori: 'Perawatan Intensif (ICU/ICCU/PICU/NICU)', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-neo-2', nama: 'Neonatologi 2', bangsalId: 'neonatologi', kategori: 'Perawatan Intensif (ICU/ICCU/PICU/NICU)', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-neo-3', nama: 'NICU', bangsalId: 'neonatologi', kategori: 'Perawatan Intensif (ICU/ICCU/PICU/NICU)', lantai: 'Lantai 2', aktif: true },
+  { id: 'rng-neo-4', nama: 'Tulip 2', bangsalId: 'neonatologi', kategori: 'Perawatan Intensif (ICU/ICCU/PICU/NICU)', lantai: 'Lantai 2', aktif: true }
 ];
+
+export const DAFTAR_RUANGAN: string[] = DEFAULT_RUANGAN_ITEMS.map(r => r.nama);
 
 export const DEFAULT_MASTER_SETTINGS: MasterSettings = {
   adminPin: '1234',
@@ -225,9 +356,9 @@ export const DUMMY_PATIENTS: PatientDischarge[] = [
     id: 'pt-1',
     noRm: '021458',
     namaPasien: 'Budi Santoso',
-    ruangan: 'Ruang Melati (Lantai 2)',
-    dpjp: 'dr. Hendra Pratama, Sp.PD (Penyakit Dalam)',
-    caraKeluar: 'Membaik (Rawat Jalan)',
+    ruangan: 'Cempaka 1',
+    dpjp: 'dr. Nanik Triana Kartikasari, Sp. PD',
+    caraKeluar: 'Membaik',
     waktuInputRuangan: '2026-09-17 08:30',
     petugasRuangan: 'Ns. Siti Aminah, S.Kep',
     statusAlur: 'selesai',
@@ -252,8 +383,8 @@ export const DUMMY_PATIENTS: PatientDischarge[] = [
     id: 'pt-2',
     noRm: '018942',
     namaPasien: 'Hj. Rohanah',
-    ruangan: 'Ruang Dahlia (Lantai 3)',
-    dpjp: 'dr. Bambang Irawan, Sp.JP (Jantung & Pembuluh Darah)',
+    ruangan: 'Dahlia 1',
+    dpjp: 'dr. Kresna Nugraha Sp, Sp.JP',
     caraKeluar: 'Persetujuan Dokter / Sembuh',
     waktuInputRuangan: '2026-09-17 10:00',
     petugasRuangan: 'Ns. Rizky, Amd.Kep',
@@ -274,8 +405,8 @@ export const DUMMY_PATIENTS: PatientDischarge[] = [
     id: 'pt-3',
     noRm: '034119',
     namaPasien: 'Ananda Kevin Alvaro',
-    ruangan: 'Ruang Mawar (Lantai 2)',
-    dpjp: 'dr. Agus Setiawan, Sp.A (Anak)',
+    ruangan: 'Panda 1',
+    dpjp: 'dr. Vonny Mariany Deckert, Sp.A., M. Biomed',
     caraKeluar: 'Persetujuan Dokter / Sembuh',
     waktuInputRuangan: '2026-09-17 11:15',
     petugasRuangan: 'Ns. Dewi Lestari, S.Kep',
@@ -286,12 +417,24 @@ export const DUMMY_PATIENTS: PatientDischarge[] = [
     id: 'pt-4',
     noRm: '009821',
     namaPasien: 'Hendra Gunawan',
-    ruangan: 'Ruang Kenanga (Lantai 4)',
-    dpjp: 'dr. Maya Anggraini, Sp.B (Bedah Umum)',
+    ruangan: 'Anggrek 1',
+    dpjp: 'dr. Totok Mardiyanto, Sp. B',
     caraKeluar: 'Atas Permintaan Sendiri (APS)',
     waktuInputRuangan: '2026-09-17 11:45',
     petugasRuangan: 'Ns. Taufik, S.Kep',
     statusAlur: 'menunggu_tpp',
     catatanRuangan: 'Keluarga meminta rawat jalan di klinik dekat rumah, surat pernyataan APS sudah ditandatangani bermaterai.'
+  },
+  {
+    id: 'pt-5',
+    noRm: '028712',
+    namaPasien: 'Ny. Siti Nurhaliza',
+    ruangan: 'Observasi 1',
+    dpjp: 'dr. Siti Aisyah, Sp. OG',
+    caraKeluar: 'Persetujuan Dokter / Sembuh',
+    waktuInputRuangan: '2026-09-17 12:30',
+    petugasRuangan: 'Bdn. Ratna, S.Tr.Keb',
+    statusAlur: 'menunggu_tpp',
+    catatanRuangan: 'Pasca partus spontan, kondisi ibu dan bayi stabil, edukasi ASI eksklusif selesai.'
   }
 ];

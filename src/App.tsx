@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { 
   PatientDischarge, RoleType, DUMMY_PATIENTS, 
   TppValidationData, BillingFinalizationData,
-  MasterSettings, DEFAULT_MASTER_SETTINGS, AuthUser
+  MasterSettings, DEFAULT_MASTER_SETTINGS, AuthUser,
+  DAFTAR_BANGSAL
 } from './types';
-import { RoleNavbar } from './components/RoleNavbar';
+import { RoleNavbar, ScopeMode } from './components/RoleNavbar';
 import { PatientDischargeTable } from './components/PatientDischargeTable';
 import { RuanganInputModal } from './components/RuanganInputModal';
 import { TppValidationModal } from './components/TppValidationModal';
@@ -17,9 +18,9 @@ import {
   Clock, ShieldCheck 
 } from 'lucide-react';
 
-const STORAGE_KEY = 'sim_pemulangan_pasien_3level_v2';
-const SETTINGS_STORAGE_KEY = 'sim_master_settings_v1';
-const AUTH_USER_KEY = 'sim_current_user_session_v1';
+const STORAGE_KEY = 'sim_pemulangan_pasien_3level_v3';
+const SETTINGS_STORAGE_KEY = 'sim_master_settings_v3';
+const AUTH_USER_KEY = 'sim_current_user_session_v2';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
@@ -38,7 +39,13 @@ export default function App() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          return parsed.map((p: PatientDischarge) => ({
+            ...p,
+            caraKeluar: (p.caraKeluar as string) === 'Membaik (Rawat Jalan)' ? 'Membaik' : p.caraKeluar
+          }));
+        }
       }
     } catch (e) {
       console.warn('Gagal membaca data localStorage, menggunakan data default.', e);
@@ -48,9 +55,30 @@ export default function App() {
 
   const [masterSettings, setMasterSettings] = useState<MasterSettings>(() => {
     try {
-      const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
-      if (stored) {
-        return JSON.parse(stored);
+      const storedV3 = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (storedV3) {
+        const parsed: MasterSettings = JSON.parse(storedV3);
+        if (Array.isArray(parsed.daftarCaraKeluar)) {
+          parsed.daftarCaraKeluar = parsed.daftarCaraKeluar.map((item) =>
+            item === 'Membaik (Rawat Jalan)' ? 'Membaik' : item
+          );
+        }
+        return parsed;
+      }
+      // Migrasi dari v2 jika ada: pertahankan PIN dll, perbarui daftarRuangan dengan 7 bangsal
+      const storedV2 = localStorage.getItem('sim_master_settings_v2');
+      if (storedV2) {
+        const parsed = JSON.parse(storedV2);
+        const migrated: MasterSettings = {
+          ...DEFAULT_MASTER_SETTINGS,
+          ...parsed,
+          daftarRuangan: DEFAULT_MASTER_SETTINGS.daftarRuangan,
+          daftarCaraKeluar: (parsed.daftarCaraKeluar || DEFAULT_MASTER_SETTINGS.daftarCaraKeluar).map((item: string) =>
+            item === 'Membaik (Rawat Jalan)' ? 'Membaik' : item
+          )
+        };
+        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(migrated));
+        return migrated;
       }
     } catch (e) {
       console.warn('Gagal membaca master settings, memakai default.');
@@ -62,6 +90,7 @@ export default function App() {
     return currentUser ? (currentUser.role === 'admin' ? 'admin' : currentUser.role) : 'ruangan';
   });
   const [selectedRuangan, setSelectedRuangan] = useState<string>('all');
+  const [scopeMode, setScopeMode] = useState<ScopeMode>('own');
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     // Default ke tanggal hari ini (YYYY-MM-DD)
     return new Date().toISOString().slice(0, 10);
@@ -118,11 +147,14 @@ export default function App() {
   const handleLoginSuccess = (user: AuthUser) => {
     setCurrentUser(user);
     setActiveRole(user.role === 'admin' ? 'admin' : user.role);
+    setScopeMode('own');
     showToast(`Selamat datang, ${user.namaLengkap} (${user.role.toUpperCase()})`);
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
+    setScopeMode('own');
+    setSelectedRuangan('all');
     showToast('Anda telah keluar dari sesi.');
   };
 
@@ -208,8 +240,33 @@ export default function App() {
     }
   };
 
+  // Tentukan daftar nama kamar yang dimiliki oleh user ruangan (berdasarkan bangsalId atau ruangan)
+  const userRoomNames = React.useMemo(() => {
+    if (!currentUser || currentUser.role !== 'ruangan') return [];
+    if (currentUser.bangsalId) {
+      return masterSettings.daftarRuangan
+        .filter((r) => r.bangsalId === currentUser.bangsalId && r.aktif)
+        .map((r) => r.nama);
+    }
+    if (currentUser.ruangan) {
+      return [currentUser.ruangan];
+    }
+    return [];
+  }, [currentUser, masterSettings.daftarRuangan]);
+
+  // Apakah sedang dalam mode fokus R. sendiri
+  const isFocusingOwnRoom = currentUser?.role === 'ruangan' && scopeMode === 'own';
+
+  // Pasien dasar yang relevan dengan cakupan pemantauan (fokus R. sendiri vs pantau seluruh RS)
+  const scopedPatients = React.useMemo(() => {
+    if (isFocusingOwnRoom && userRoomNames.length > 0) {
+      return patients.filter((p) => userRoomNames.includes(p.ruangan));
+    }
+    return patients;
+  }, [patients, isFocusingOwnRoom, userRoomNames]);
+
   // Filter pasien berdasarkan role, ruangan, status alur, tanggal pulang, dan pencarian No RM / Nama
-  const filteredPatients = patients
+  const filteredPatients = scopedPatients
     .filter((patient) => {
       // Search match: No RM (6 digit), Nama, DPJP, Ruangan
       const query = searchQuery.trim().toLowerCase();
@@ -249,16 +306,16 @@ export default function App() {
       return b.waktuInputRuangan.localeCompare(a.waktuInputRuangan);
     });
 
-  // KPI Counts (sesuai tanggal terpilih jika ada)
-  const patientsOnDate = selectedDate
-    ? patients.filter((p) => p.waktuInputRuangan.slice(0, 10) === selectedDate)
-    : patients;
+  // KPI Counts (sesuai cakupan fokus R. atau seluruh RS, dan tanggal terpilih)
+  const scopedPatientsOnDate = selectedDate
+    ? scopedPatients.filter((p) => p.waktuInputRuangan.slice(0, 10) === selectedDate)
+    : scopedPatients;
 
-  const countMenungguTpp = patientsOnDate.filter((p) => p.statusAlur === 'menunggu_tpp').length;
-  const countMenungguBilling = patientsOnDate.filter((p) => p.statusAlur === 'menunggu_billing').length;
-  const countSelesai = patientsOnDate.filter((p) => p.statusAlur === 'selesai').length;
-  const countPasienTanggal = patientsOnDate.length;
-  const totalPasien = patients.length;
+  const countMenungguTpp = scopedPatientsOnDate.filter((p) => p.statusAlur === 'menunggu_tpp').length;
+  const countMenungguBilling = scopedPatientsOnDate.filter((p) => p.statusAlur === 'menunggu_billing').length;
+  const countSelesai = scopedPatientsOnDate.filter((p) => p.statusAlur === 'selesai').length;
+  const countPasienTanggal = scopedPatientsOnDate.length;
+  const totalPasien = scopedPatients.length;
 
   // Jika belum login, tampilkan halaman Login View
   if (!currentUser) {
@@ -308,6 +365,8 @@ export default function App() {
           ruanganList={masterSettings.daftarRuangan}
           statusFilter={statusFilter}
           onStatusFilterChange={setStatusFilter}
+          scopeMode={scopeMode}
+          onScopeModeChange={setScopeMode}
         />
 
         {/* Master & Hak Akses Administrator View */}
@@ -324,10 +383,16 @@ export default function App() {
           />
         ) : (
           <>
-            {/* Header Ringkas Info Data Pasien */}
-            <div className="flex items-center justify-between text-xs text-slate-500 px-1">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-slate-800">Daftar Pasien Pulang</span>
+            {/* Header Ringkas Info Data Pasien & Indikator Cakupan Ruangan */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500 px-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-slate-800">
+                  {currentUser?.role === 'ruangan'
+                    ? (scopeMode === 'own'
+                        ? `Monitoring Pasien R. ${DAFTAR_BANGSAL.find(b => b.id === currentUser.bangsalId)?.nama || currentUser.ruangan || ''}`
+                        : 'Monitoring Keseluruhan Ruangan RS')
+                    : 'Daftar Pasien Pulang Seluruh Ruangan'}
+                </span>
                 <span>&bull;</span>
                 <span>
                   {selectedDate ? (
@@ -335,19 +400,40 @@ export default function App() {
                       Tanggal: <strong className="text-slate-700">{selectedDate}</strong> ({filteredPatients.length} pasien)
                     </>
                   ) : (
-                    <>{filteredPatients.length} dari total {totalPasien} pasien</>
+                    <>{filteredPatients.length} pasien terfilter (dari {totalPasien} data)</>
                   )}
                 </span>
+                {currentUser?.role === 'ruangan' && scopeMode === 'own' && (
+                  <span className="text-[11px] font-medium text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
+                    Fokus R. Sendiri
+                  </span>
+                )}
+                {currentUser?.role === 'ruangan' && scopeMode === 'all' && (
+                  <span className="text-[11px] font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                    Mode Pantau Seluruh RS
+                  </span>
+                )}
               </div>
-              {selectedDate && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedDate('')}
-                  className="text-teal-700 hover:text-teal-800 hover:underline font-medium"
-                >
-                  Tampilkan Semua Tanggal
-                </button>
-              )}
+              <div className="flex items-center gap-3">
+                {currentUser?.role === 'ruangan' && (
+                  <button
+                    type="button"
+                    onClick={() => setScopeMode(scopeMode === 'own' ? 'all' : 'own')}
+                    className="text-teal-700 hover:text-teal-800 hover:underline font-semibold"
+                  >
+                    {scopeMode === 'own' ? 'Lihat Semua Ruang RS &rarr;' : '&larr; Kembali ke Fokus R. Sendiri'}
+                  </button>
+                )}
+                {selectedDate && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDate('')}
+                    className="text-slate-500 hover:text-slate-800 hover:underline font-medium"
+                  >
+                    Tampilkan Semua Tanggal
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Main Patient Table with Integrated Status */}
@@ -372,6 +458,7 @@ export default function App() {
       {isInputRuanganOpen && (
         <RuanganInputModal
           ruanganAwal={currentUser.ruangan || (selectedRuangan !== 'all' ? selectedRuangan : undefined)}
+          bangsalId={currentUser.bangsalId}
           ruanganList={masterSettings.daftarRuangan}
           dpjpList={masterSettings.daftarDpjp}
           caraKeluarList={masterSettings.daftarCaraKeluar}

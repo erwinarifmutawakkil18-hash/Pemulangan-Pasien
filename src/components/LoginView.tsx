@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { 
   Building2, CreditCard, Receipt, Shield, 
   KeyRound, LogIn, CheckCircle2, AlertCircle, Sparkles,
-  Lock
+  Layers, UserCheck
 } from 'lucide-react';
-import { RoleType, AuthUser, RuanganItem, DAFTAR_RUANGAN, DEFAULT_USER_ACCOUNTS } from '../types';
+import { 
+  RoleType, AuthUser, RuanganItem, 
+  DEFAULT_USER_ACCOUNTS, BangsalId, DAFTAR_BANGSAL 
+} from '../types';
 
 interface LoginViewProps {
   onLoginSuccess: (user: AuthUser) => void;
@@ -15,13 +18,14 @@ export const LoginView: React.FC<LoginViewProps> = ({
   onLoginSuccess,
   ruanganList,
 }) => {
-  const availableRuangan = ruanganList 
-    ? ruanganList.filter(r => r.aktif).map(r => r.nama) 
-    : DAFTAR_RUANGAN;
+  const allRooms = ruanganList || [];
 
-  const [selectedRole, setSelectedRole] = useState<RoleType>('ruangan');
-  const [selectedRuangan, setSelectedRuangan] = useState<string>(availableRuangan[0] || 'Ruang Melati (Lantai 2)');
-  const [namaPetugas, setNamaPetugas] = useState<string>('');
+  // Pilihan Role Utama: 'bangsal' (R. Rawat Inap), 'tpp', 'billing', 'admin'
+  const [loginCategory, setLoginCategory] = useState<'bangsal' | 'tpp' | 'billing' | 'admin'>('bangsal');
+  
+  // Jika loginCategory === 'bangsal', akun R. yang dipilih
+  const [selectedBangsalId, setSelectedBangsalId] = useState<BangsalId>('general');
+
   const [pinInput, setPinInput] = useState<string>('1234');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -29,106 +33,123 @@ export const LoginView: React.FC<LoginViewProps> = ({
     if (e) e.preventDefault();
     setErrorMsg(null);
 
-    // Temukan akun
-    const account = DEFAULT_USER_ACCOUNTS.find(a => a.role === selectedRole);
-    const expectedPin = account ? account.pin : '1234';
+    // Temukan akun target
+    const targetAccount = DEFAULT_USER_ACCOUNTS.find(a => {
+      if (loginCategory === 'bangsal') {
+        return a.role === 'ruangan' && a.bangsalId === selectedBangsalId;
+      }
+      return a.role === loginCategory;
+    });
+
+    const expectedPin = targetAccount ? targetAccount.pin : '1234';
 
     if (pinInput.trim() !== expectedPin) {
       setErrorMsg(`PIN tidak tepat. Gunakan PIN default: ${expectedPin}`);
       return;
     }
 
-    const defaultNama = 
-      selectedRole === 'ruangan' ? (namaPetugas.trim() || `Perawat ${selectedRuangan.split(' ')[1] || 'Ruangan'}`)
-      : selectedRole === 'tpp' ? (namaPetugas.trim() || 'Petugas TPP & Admisi')
-      : selectedRole === 'billing' ? (namaPetugas.trim() || 'Petugas Billing')
-      : (namaPetugas.trim() || 'Administrator RS');
+    const bangsalMeta = DAFTAR_BANGSAL.find(b => b.id === selectedBangsalId);
+    const effectiveRole: RoleType = loginCategory === 'bangsal' ? 'ruangan' : loginCategory;
+    
+    const accountNama = 
+      loginCategory === 'bangsal' 
+        ? `R. ${bangsalMeta?.nama || 'Rawat Inap'}`
+        : loginCategory === 'tpp' 
+          ? 'TPP & Informasi'
+          : loginCategory === 'billing' 
+            ? 'Billing & Kasir'
+            : 'Administrator RS';
 
     const authUser: AuthUser = {
       id: `usr_${Date.now()}`,
-      username: account?.username || selectedRole,
-      namaLengkap: defaultNama,
-      role: selectedRole,
-      ruangan: selectedRole === 'ruangan' ? selectedRuangan : undefined,
+      username: targetAccount?.username || (loginCategory === 'bangsal' ? `r_${selectedBangsalId}` : loginCategory),
+      namaLengkap: accountNama,
+      role: effectiveRole,
+      bangsalId: loginCategory === 'bangsal' ? selectedBangsalId : undefined,
       waktuLogin: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
     };
 
     onLoginSuccess(authUser);
   };
 
-  // Quick Direct Login helper
-  const handleQuickLogin = (role: RoleType) => {
-    setSelectedRole(role);
-    const account = DEFAULT_USER_ACCOUNTS.find(a => a.role === role);
+  // Login Cepat untuk Non-Bangsal (TPP, Billing, Admin)
+  const handleQuickLoginNonBangsal = (role: 'tpp' | 'billing' | 'admin') => {
+    setLoginCategory(role);
+    const targetAccount = DEFAULT_USER_ACCOUNTS.find(a => a.role === role);
     const defaultNama = 
-      role === 'ruangan' ? `Petugas ${selectedRuangan.split(' ')[1] || 'Ruangan'}`
-      : role === 'tpp' ? 'Petugas TPP & Admisi'
-      : role === 'billing' ? 'Petugas Billing'
+      role === 'tpp' ? 'TPP & Informasi'
+      : role === 'billing' ? 'Billing & Kasir'
       : 'Administrator RS';
 
     const authUser: AuthUser = {
       id: `usr_${Date.now()}`,
-      username: account?.username || role,
+      username: targetAccount?.username || role,
       namaLengkap: defaultNama,
       role: role,
-      ruangan: role === 'ruangan' ? selectedRuangan : undefined,
       waktuLogin: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
     };
 
     onLoginSuccess(authUser);
   };
 
+  // Ambil data akun bangsal yang sedang dipilih
+  const currentBangsalAccount = DEFAULT_USER_ACCOUNTS.find(
+    a => a.role === 'ruangan' && a.bangsalId === selectedBangsalId
+  );
+  const roomsInSelectedBangsal = allRooms.filter(r => r.aktif && r.bangsalId === selectedBangsalId);
+
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center p-4 sm:p-6">
-      <div className="w-full max-w-2xl bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+    <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center p-3 sm:p-6">
+      <div className="w-full max-w-3xl bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
         
         {/* Header Branding */}
         <div className="bg-gradient-to-r from-teal-800 via-teal-700 to-slate-800 p-6 text-white text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/20 mb-3">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/20 mb-3 shadow-inner">
             <Building2 className="w-6 h-6 text-teal-200" />
           </div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
             Sistem Informasi Pemulangan Pasien
           </h1>
-          <p className="text-xs sm:text-sm text-teal-100/90 mt-1 max-w-md mx-auto">
-            Pelacakan alur kepulangan terintegrasi: Ruang Rawat Inap &bull; TPP & Informasi &bull; Billing
+          <p className="text-xs sm:text-sm text-teal-100/90 mt-1 max-w-lg mx-auto">
+            Pelacakan alur kepulangan terintegrasi: Akun R. Rawat Inap &bull; TPP & Informasi &bull; Billing
           </p>
         </div>
 
         {/* Content Area */}
-        <div className="p-6 sm:p-8 space-y-6">
+        <div className="p-5 sm:p-8 space-y-6">
+          
+          {/* 1. Pilih Kategori Login Unit Utama */}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2.5">
-              1. Pilih Unit / Peran Kerja Anda:
+              1. Pilih Akses:
             </label>
             
-            {/* Grid 4 Roles */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               
-              {/* Ruangan */}
+              {/* Ruang Rawat Inap (R.) */}
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedRole('ruangan');
+                  setLoginCategory('bangsal');
                   setErrorMsg(null);
                 }}
                 className={`p-3.5 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
-                  selectedRole === 'ruangan'
-                    ? 'border-teal-600 bg-teal-50/70 shadow-xs'
+                  loginCategory === 'bangsal'
+                    ? 'border-teal-600 bg-teal-50/80 shadow-xs ring-1 ring-teal-500'
                     : 'border-slate-200 hover:border-slate-300 bg-white'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <div className={`p-2 rounded-xl ${selectedRole === 'ruangan' ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                  <div className={`p-2 rounded-xl ${loginCategory === 'bangsal' ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
                     <Building2 className="w-4 h-4" />
                   </div>
-                  {selectedRole === 'ruangan' && (
+                  {loginCategory === 'bangsal' && (
                     <CheckCircle2 className="w-4 h-4 text-teal-600" />
                   )}
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-slate-900">Ruang Rawat Inap</div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">Input pemulangan & kirim ke TPP</div>
+                  <div className="text-xs font-bold text-slate-900">R. Rawat Inap</div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">7 Pilihan R. Rawat Inap</div>
                 </div>
               </button>
 
@@ -136,20 +157,20 @@ export const LoginView: React.FC<LoginViewProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedRole('tpp');
+                  setLoginCategory('tpp');
                   setErrorMsg(null);
                 }}
                 className={`p-3.5 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
-                  selectedRole === 'tpp'
-                    ? 'border-sky-600 bg-sky-50/70 shadow-xs'
+                  loginCategory === 'tpp'
+                    ? 'border-sky-600 bg-sky-50/80 shadow-xs ring-1 ring-sky-500'
                     : 'border-slate-200 hover:border-slate-300 bg-white'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <div className={`p-2 rounded-xl ${selectedRole === 'tpp' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                  <div className={`p-2 rounded-xl ${loginCategory === 'tpp' ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
                     <CreditCard className="w-4 h-4" />
                   </div>
-                  {selectedRole === 'tpp' && (
+                  {loginCategory === 'tpp' && (
                     <CheckCircle2 className="w-4 h-4 text-sky-600" />
                   )}
                 </div>
@@ -163,25 +184,25 @@ export const LoginView: React.FC<LoginViewProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedRole('billing');
+                  setLoginCategory('billing');
                   setErrorMsg(null);
                 }}
                 className={`p-3.5 rounded-2xl border-2 text-left transition flex flex-col justify-between ${
-                  selectedRole === 'billing'
-                    ? 'border-emerald-600 bg-emerald-50/70 shadow-xs'
+                  loginCategory === 'billing'
+                    ? 'border-emerald-600 bg-emerald-50/80 shadow-xs ring-1 ring-emerald-500'
                     : 'border-slate-200 hover:border-slate-300 bg-white'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <div className={`p-2 rounded-xl ${selectedRole === 'billing' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                  <div className={`p-2 rounded-xl ${loginCategory === 'billing' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
                     <Receipt className="w-4 h-4" />
                   </div>
-                  {selectedRole === 'billing' && (
+                  {loginCategory === 'billing' && (
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   )}
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-slate-900">Billing</div>
+                  <div className="text-xs font-bold text-slate-900">Billing & Kasir</div>
                   <div className="text-[11px] text-slate-500 mt-0.5">Verifikasi rincian & kuitansi</div>
                 </div>
               </button>
@@ -189,66 +210,97 @@ export const LoginView: React.FC<LoginViewProps> = ({
             </div>
           </div>
 
-          {/* Form Credentials */}
-          <form onSubmit={handleLogin} className="space-y-4 pt-1">
-            
-            {/* Khusus Ruangan: Pilihan Nama Ruangan */}
-            {selectedRole === 'ruangan' && (
-              <div className="p-3.5 bg-teal-50/60 rounded-2xl border border-teal-200 space-y-1.5">
-                <label className="block text-xs font-bold text-teal-950">
-                  Pilih Ruang Rawat Inap Tugas:
+          {/* KHUSUS RAWAT INAP: PILIH AKUN R. (TIDAK PERLU PILIH KAMAR) */}
+          {loginCategory === 'bangsal' && (
+            <div className="p-4 bg-slate-50 rounded-2xl border border-teal-200/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Layers className="w-4 h-4 text-teal-600" />
+                  <span>2. Pilih Ruangan:</span>
                 </label>
-                <select
-                  value={selectedRuangan}
-                  onChange={(e) => setSelectedRuangan(e.target.value)}
-                  className="w-full bg-white border border-teal-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                >
-                  {availableRuangan.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[11px] text-teal-800/80">
-                  Form input pasien akan otomatis diarahkan ke ruangan yang dipilih ini.
-                </p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {/* Nama Petugas / Perawat (Opsional) */}
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Nama Petugas (Opsional):
-                </label>
-                <input
-                  type="text"
-                  value={namaPetugas}
-                  onChange={(e) => setNamaPetugas(e.target.value)}
-                  placeholder={
-                    selectedRole === 'ruangan' ? 'e.g. Ns. Sarah' :
-                    selectedRole === 'tpp' ? 'e.g. Budi (TPP)' :
-                    selectedRole === 'billing' ? 'e.g. Fitri (Billing)' : 'Admin'
-                  }
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                />
+                <span className="text-[11px] text-teal-700 font-semibold bg-teal-100/70 px-2 py-0.5 rounded-md">
+                  7 Pilihan R. Rawat Inap
+                </span>
               </div>
 
-              {/* PIN / Kata Sandi */}
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  PIN Masuk (Default: <code className="text-teal-700 font-bold">1234</code>):
-                </label>
-                <div className="relative">
-                  <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="password"
-                    value={pinInput}
-                    onChange={(e) => setPinInput(e.target.value)}
-                    placeholder="Masukkan PIN"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                  />
+              {/* Grid 7 Akun R. */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {DAFTAR_BANGSAL.map((bangsal) => {
+                  const isSelected = selectedBangsalId === bangsal.id;
+                  const roomCount = allRooms.filter(r => r.aktif && r.bangsalId === bangsal.id).length;
+                  const acc = DEFAULT_USER_ACCOUNTS.find(a => a.bangsalId === bangsal.id);
+
+                  return (
+                    <button
+                      key={bangsal.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedBangsalId(bangsal.id);
+                        setErrorMsg(null);
+                      }}
+                      className={`p-3 rounded-xl border text-left transition flex flex-col justify-between ${
+                        isSelected 
+                          ? 'border-teal-600 bg-teal-700 text-white shadow-xs' 
+                          : 'border-slate-200 bg-white hover:border-teal-300 text-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-1 mb-1">
+                        <div>
+                          <div className="font-bold text-xs">
+                            R. {bangsal.nama}
+                          </div>
+                          <div className={`text-[10px] font-mono ${isSelected ? 'text-teal-200' : 'text-slate-400'}`}>
+                            User: {acc?.username || `r_${bangsal.id}`}
+                          </div>
+                        </div>
+                        {isSelected ? (
+                          <CheckCircle2 className="w-4 h-4 text-teal-200 shrink-0" />
+                        ) : (
+                          <div className="w-2 h-2 rounded-full bg-slate-300 shrink-0 mt-1" />
+                        )}
+                      </div>
+
+                      <div className={`text-[10px] line-clamp-1 mt-1 ${isSelected ? 'text-teal-100' : 'text-slate-500'}`}>
+                        {bangsal.keterangan || `${roomCount} Kamar Terhubung`}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Info R. Aktif & Fleksibilitas Kamar */}
+              <div className="p-3 bg-white rounded-xl border border-slate-200 text-xs text-slate-700 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-teal-600 shrink-0" />
+                  <span>
+                    Akun Aktif: <strong>R. {DAFTAR_BANGSAL.find(b => b.id === selectedBangsalId)?.nama}</strong>
+                    <span className="text-slate-400 ml-1.5 font-normal">
+                      ({roomsInSelectedBangsal.length} kamar terhubung)
+                    </span>
+                  </span>
                 </div>
+                <span className="text-[11px] text-teal-700 font-medium hidden sm:inline">
+                  *Kamar dipilih saat input pasien pulang
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Form PIN Masuk (Nama Petugas Dihilangkan) */}
+          <form onSubmit={handleLogin} className="space-y-4 pt-1">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                PIN Masuk (Default: <code className="text-teal-700 font-bold">1234</code>):
+              </label>
+              <div className="relative max-w-sm">
+                <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="password"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value)}
+                  placeholder="Masukkan PIN"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2.5 text-xs font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                />
               </div>
             </div>
 
@@ -259,7 +311,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
               </div>
             )}
 
-            {/* Login Button */}
+            {/* Tombol Masuk */}
             <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
               <button
                 type="submit"
@@ -267,16 +319,17 @@ export const LoginView: React.FC<LoginViewProps> = ({
               >
                 <LogIn className="w-4 h-4" />
                 <span>Masuk Sebagai {
-                  selectedRole === 'ruangan' ? 'Ruangan' :
-                  selectedRole === 'tpp' ? 'TPP & Informasi' :
-                  selectedRole === 'billing' ? 'Billing' : 'Admin'
+                  loginCategory === 'bangsal' 
+                    ? `R. ${DAFTAR_BANGSAL.find(b => b.id === selectedBangsalId)?.nama}` 
+                    : loginCategory === 'tpp' ? 'TPP & Informasi' 
+                    : loginCategory === 'billing' ? 'Billing & Kasir' : 'Admin'
                 }</span>
               </button>
 
-              {/* Admin switch link */}
+              {/* Shortcut Masuk Administrator */}
               <button
                 type="button"
-                onClick={() => handleQuickLogin('admin')}
+                onClick={() => handleQuickLoginNonBangsal('admin')}
                 className="text-xs text-slate-500 hover:text-indigo-700 font-medium py-2 px-3 rounded-lg hover:bg-slate-100 transition flex items-center gap-1.5"
               >
                 <Shield className="w-3.5 h-3.5" />
@@ -286,20 +339,15 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
           </form>
 
-          {/* Fitur & Hak Akses Notice */}
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-600 space-y-1.5">
-            <div className="flex items-center gap-1.5 font-bold text-slate-800">
-              <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>Ketentuan Hak Akses & Monitoring:</span>
+          {/* Keterangan Hak Akses */}
+          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-600 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-slate-800 text-xs">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span>Sistem Monitoring Berbasis R. (Ruang Rawat Inap):</span>
             </div>
-            <ul className="list-disc pl-4 space-y-1 text-[11px] text-slate-600">
-              <li>
-                <strong>Monitoring Dashboard:</strong> Tetap muncul dan bisa dipantau secara langsung oleh seluruh peran (Ruangan, TPP, Billing, dan Admin).
-              </li>
-              <li>
-                <strong>Tombol Tindakan:</strong> Disesuaikan otomatis. Ruangan hanya menginput kepulangan, TPP memvalidasi penjamin & kelas, dan Billing memfinalisasi kuitansi pelunasan.
-              </li>
-            </ul>
+            <p className="text-[11px] text-slate-600 leading-relaxed">
+              Setiap R. akan langsung fokus memonitor alur pasien di ruangannya sendiri (pasien pulang, validasi TPP, antre billing, hingga selesai). Tersedia juga menu cepat 1 klik untuk melihat pemantauan proses secara keseluruhan dari ruang lain di RS.
+            </p>
           </div>
 
         </div>
@@ -308,3 +356,4 @@ export const LoginView: React.FC<LoginViewProps> = ({
     </div>
   );
 };
+

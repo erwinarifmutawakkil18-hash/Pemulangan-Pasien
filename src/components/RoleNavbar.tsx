@@ -2,9 +2,11 @@ import React from 'react';
 import { 
   Building2, CreditCard, Receipt, Users, Plus, 
   Search, RefreshCw, Filter, CheckCircle2, Clock, AlertCircle,
-  Shield, Settings, Calendar, LogOut, UserCheck, Sparkles
+  Shield, Settings, Calendar, LogOut, UserCheck, Sparkles, Globe, Eye
 } from 'lucide-react';
-import { RoleType, DAFTAR_RUANGAN, RuanganItem, AuthUser } from '../types';
+import { RoleType, DAFTAR_RUANGAN, RuanganItem, AuthUser, DAFTAR_BANGSAL } from '../types';
+
+export type ScopeMode = 'own' | 'all';
 
 interface RoleNavbarProps {
   currentUser?: AuthUser | null;
@@ -27,6 +29,8 @@ interface RoleNavbarProps {
   selectedDate: string;
   onDateChange: (date: string) => void;
   countPasienTanggal: number;
+  scopeMode: ScopeMode;
+  onScopeModeChange: (mode: ScopeMode) => void;
 }
 
 export const RoleNavbar: React.FC<RoleNavbarProps> = ({
@@ -50,6 +54,8 @@ export const RoleNavbar: React.FC<RoleNavbarProps> = ({
   selectedDate,
   onDateChange,
   countPasienTanggal,
+  scopeMode,
+  onScopeModeChange,
 }) => {
   const displayRuangan = ruanganList ? ruanganList.filter(r => r.aktif).map(r => r.nama) : DAFTAR_RUANGAN;
   const userRole = currentUser?.role || activeRole;
@@ -94,16 +100,21 @@ export const RoleNavbar: React.FC<RoleNavbarProps> = ({
               <div className="text-left leading-tight">
                 <div className="text-xs font-bold text-slate-800 flex items-center gap-1">
                   <span>{currentUser.namaLengkap}</span>
-                  {currentUser.ruangan && (
+                  {currentUser.bangsalId && (
+                    <span className="text-[10px] font-semibold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200">
+                      R. {DAFTAR_BANGSAL.find(b => b.id === currentUser.bangsalId)?.nama || ''}
+                    </span>
+                  )}
+                  {currentUser.ruangan && !currentUser.bangsalId && (
                     <span className="text-[10px] font-semibold text-teal-700 bg-teal-50 px-1.5 py-0.2 rounded border border-teal-200">
                       {currentUser.ruangan}
                     </span>
                   )}
                 </div>
                 <div className="text-[10px] text-slate-500 capitalize">
-                  {currentUser.role === 'ruangan' ? 'Petugas Rawat Inap' :
-                   currentUser.role === 'tpp' ? 'Petugas TPP & Informasi' :
-                   currentUser.role === 'billing' ? 'Petugas Billing' : 'Administrator'}
+                  {currentUser.role === 'ruangan' ? (currentUser.bangsalId ? `Akun R. ${DAFTAR_BANGSAL.find(b => b.id === currentUser.bangsalId)?.nama}` : 'Rawat Inap') :
+                   currentUser.role === 'tpp' ? 'TPP & Informasi' :
+                   currentUser.role === 'billing' ? 'Billing & Kasir' : 'Administrator'}
                 </div>
               </div>
             </div>
@@ -216,11 +227,11 @@ export const RoleNavbar: React.FC<RoleNavbarProps> = ({
           </button>
         </div>
       ) : (
-        /* Untuk Petugas Ruangan, TPP, atau Billing: Tampilkan Banner Khusus Peran yang Elegan */
-        <div className={`p-3 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs ${
-          userRole === 'ruangan' ? 'bg-teal-50/70 border-teal-200 text-teal-950' :
-          userRole === 'tpp' ? 'bg-sky-50/70 border-sky-200 text-sky-950' :
-          'bg-emerald-50/70 border-emerald-200 text-emerald-950'
+        /* Untuk Petugas Ruangan, TPP, atau Billing: Tampilkan Banner Khusus Peran dengan Switch Fokus R. vs Pantau Semua Ruangan */
+        <div className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+          userRole === 'ruangan' ? 'bg-teal-50/80 border-teal-200 text-teal-950 shadow-2xs' :
+          userRole === 'tpp' ? 'bg-sky-50/80 border-sky-200 text-sky-950 shadow-2xs' :
+          'bg-emerald-50/80 border-emerald-200 text-emerald-950 shadow-2xs'
         }`}>
           <div className="flex items-center gap-2.5">
             <div className={`p-2 rounded-xl shrink-0 ${
@@ -233,25 +244,78 @@ export const RoleNavbar: React.FC<RoleNavbarProps> = ({
               {userRole === 'billing' && <Receipt className="w-4 h-4" />}
             </div>
             <div>
-              <div className="font-bold flex items-center gap-1.5">
-                <span>Unit Kerja Anda: {
-                  userRole === 'ruangan' ? (currentUser?.ruangan || 'Ruang Rawat Inap') :
-                  userRole === 'tpp' ? 'TPP & Informasi (Pendaftaran & Admisi)' :
-                  'Billing (Rincian Biaya & Pelunasan)'
+              <div className="font-bold flex items-center gap-2 flex-wrap">
+                <span>Unit Kerja: {
+                  userRole === 'ruangan' 
+                    ? (currentUser?.bangsalId 
+                        ? `R. ${DAFTAR_BANGSAL.find(b => b.id === currentUser.bangsalId)?.nama || ''}`
+                        : (currentUser?.ruangan || 'R. Rawat Inap'))
+                    : userRole === 'tpp' ? 'TPP & Informasi (Admisi & Jaminan)' 
+                    : 'Billing (Kasir & Pelunasan)'
                 }</span>
+                {userRole === 'ruangan' && (
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                    scopeMode === 'own'
+                      ? 'bg-teal-600 text-white border-teal-700'
+                      : 'bg-white text-slate-700 border-slate-300'
+                  }`}>
+                    {scopeMode === 'own' ? 'Mode: Fokus R. Sendiri' : 'Mode: Pantau Semua Ruang RS'}
+                  </span>
+                )}
               </div>
               <p className="text-[11px] opacity-85 mt-0.5">
-                {userRole === 'ruangan' && 'Berwenang menginput pasien rencana pulang. Dashboard monitoring di bawah menampilkan seluruh alur pasien.'}
-                {userRole === 'tpp' && 'Berwenang memvalidasi jenis pembiayaan (BPJS/Umum/Asuransi) & hak kelas pada pasien yang menunggu.'}
-                {userRole === 'billing' && 'Berwenang memverifikasi rincian tagihan billing & menerbitkan kuitansi pelunasan pasien.'}
+                {userRole === 'ruangan' && (
+                  currentUser?.bangsalId
+                    ? (scopeMode === 'own'
+                        ? `Menampilkan khusus data & alur pemulangan pasien di R. ${DAFTAR_BANGSAL.find(b => b.id === currentUser.bangsalId)?.nama}.`
+                        : `Mode supervisi aktif: Anda sedang melihat alur proses pemulangan pasien dari seluruh ruangan RS.`)
+                    : 'Berwenang menginput pasien rencana pulang rawat inap.'
+                )}
+                {userRole === 'tpp' && 'Memvalidasi jenis pembiayaan (BPJS/Umum/Asuransi) & hak kelas pasien rawat inap seluruh RS.'}
+                {userRole === 'billing' && 'Memverifikasi rincian tagihan billing & menerbitkan kuitansi pelunasan pasien RS.'}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1 text-[11px] font-semibold opacity-90 shrink-0">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>Monitoring Dashboard Aktif Terpadu</span>
-          </div>
+          {/* Scope Selector: Khusus untuk Ruangan agar bisa fokus ke R. nya ATAU melihat seluruh data ruang lain */}
+          {userRole === 'ruangan' && currentUser?.bangsalId ? (
+            <div className="flex items-center bg-white/90 p-1 rounded-xl border border-teal-200 shadow-2xs self-start sm:self-center shrink-0">
+              <button
+                type="button"
+                id="btn-scope-own"
+                onClick={() => onScopeModeChange('own')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                  scopeMode === 'own'
+                    ? 'bg-teal-700 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-teal-800 hover:bg-teal-50/60'
+                }`}
+                title={`Fokus monitoring hanya untuk pasien di R. ${DAFTAR_BANGSAL.find(b => b.id === currentUser.bangsalId)?.nama}`}
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Fokus R. {DAFTAR_BANGSAL.find(b => b.id === currentUser.bangsalId)?.nama}</span>
+              </button>
+              
+              <button
+                type="button"
+                id="btn-scope-all"
+                onClick={() => onScopeModeChange('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                  scopeMode === 'all'
+                    ? 'bg-slate-800 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+                title="Lihat proses alur pemulangan secara keseluruhan dari data ruang lain"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>Lihat Seluruh Ruang RS</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 text-[11px] font-semibold opacity-90 shrink-0">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span>Monitoring Terpadu Aktif</span>
+            </div>
+          )}
         </div>
       )}
 

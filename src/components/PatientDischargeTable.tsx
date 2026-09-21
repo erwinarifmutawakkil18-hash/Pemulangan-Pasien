@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   CheckCircle2, Clock, Eye, FileEdit, ShieldCheck, 
-  ArrowRight, AlertCircle, Building2, User, Stethoscope, DoorOpen, CreditCard, Receipt
+  AlertCircle, CreditCard
 } from 'lucide-react';
 import { PatientDischarge, RoleType } from '../types';
 
@@ -46,54 +46,30 @@ export const PatientDischargeTable: React.FC<PatientDischargeTableProps> = ({
               <th className="py-3 px-4">No. RM & Nama Pasien</th>
               <th className="py-3 px-4">Ruangan & DPJP</th>
               <th className="py-3 px-4">Cara Keluar</th>
-              <th className="py-3 px-4">Status</th>
+              <th className="py-3 px-4">Status Proses</th>
               <th className="py-3 px-4">Data TPP (Jaminan & Kelas)</th>
               <th className="py-3 px-4 text-center">Aksi / Proses</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {patients.map((patient) => {
-              const isWaitingTpp = patient.statusAlur === 'menunggu_tpp';
-              const isTppDone = patient.statusAlur === 'menunggu_billing' || patient.statusAlur === 'selesai';
-              const isBillingDone = patient.statusAlur === 'selesai';
-
               return (
                 <tr 
                   key={patient.id} 
-                  className={`transition group ${
-                    isWaitingTpp
-                      ? 'bg-amber-50/70 hover:bg-amber-100/60 border-l-4 border-l-amber-500 shadow-2xs'
-                      : 'hover:bg-slate-50/80 border-l-4 border-l-transparent'
-                  }`}
+                  className="hover:bg-slate-50/80 transition"
                 >
                   
                   {/* No. RM (6 Digit) & Nama Pasien */}
                   <td className="py-3.5 px-4">
                     <div className="flex items-start gap-2.5">
-                      <span className={`font-mono text-xs px-2 py-0.5 rounded-md font-bold border tracking-wider shrink-0 ${
-                        isWaitingTpp
-                          ? 'bg-amber-100 text-amber-900 border-amber-300'
-                          : 'bg-teal-50 text-teal-800 border-teal-200'
-                      }`}>
+                      <span className="font-mono text-xs px-2 py-0.5 rounded-md font-bold border tracking-wider shrink-0 bg-teal-50 text-teal-800 border-teal-200">
                         {patient.noRm}
                       </span>
                       <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`font-bold block text-sm transition ${
-                            isWaitingTpp ? 'text-amber-950 group-hover:text-amber-800' : 'text-slate-900 group-hover:text-teal-700'
-                          }`}>
-                            {patient.namaPasien}
-                          </span>
-
-                          {/* Pembeda Khusus: Badge Menunggu Validasi TPP */}
-                          {isWaitingTpp && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200/90 text-amber-900 border border-amber-400/60 animate-pulse">
-                              <AlertCircle className="w-3 h-3 text-amber-700" />
-                              Antrean TPP
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-[10px] text-slate-500 mt-0.5 block flex items-center gap-1">
+                        <span className="font-bold block text-sm text-slate-900 group-hover:text-teal-700 transition">
+                          {patient.namaPasien}
+                        </span>
+                        <span className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
                           <Clock className="w-3 h-3 text-slate-400" />
                           Diinput: {patient.waktuInputRuangan}
                         </span>
@@ -118,59 +94,26 @@ export const PatientDischargeTable: React.FC<PatientDischargeTableProps> = ({
                     </span>
                   </td>
 
-                  {/* Status Alur 3 Level (Ruangan -> TPP -> Billing) */}
-                  <td className="py-3.5 px-4 min-w-[200px]">
-                    <div className="space-y-1.5">
-                      {/* Step Indicator Badges */}
-                      <div className="flex items-center gap-1 text-[10px]">
-                        <span className="px-1.5 py-0.5 rounded bg-teal-100 text-teal-800 font-bold flex items-center gap-0.5" title="Selesai Diinput Ruangan">
-                          <CheckCircle2 className="w-3 h-3 text-teal-600" /> Ruangan
-                        </span>
-                        
-                        <ArrowRight className="w-2.5 h-2.5 text-slate-300" />
-
-                        <span className={`px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5 ${
-                          isTppDone 
-                            ? 'bg-sky-100 text-sky-800' 
-                            : 'bg-amber-100 text-amber-800 ring-1 ring-amber-300 animate-pulse'
-                        }`} title="Validasi TPP & Informasi">
-                          {isTppDone ? <CheckCircle2 className="w-3 h-3 text-sky-600" /> : <Clock className="w-3 h-3 text-amber-600" />}
-                          TPP
-                        </span>
-
-                        <ArrowRight className="w-2.5 h-2.5 text-slate-300" />
-
-                        <span className={`px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5 ${
-                          isBillingDone 
-                            ? 'bg-emerald-100 text-emerald-800' 
-                            : isTppDone 
-                              ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300 animate-pulse' 
-                              : 'bg-slate-100 text-slate-400'
-                        }`} title="Finalisasi Billing">
-                          {isBillingDone ? <ShieldCheck className="w-3 h-3 text-emerald-600" /> : <Clock className="w-3 h-3 text-slate-400" />}
-                          Billing
-                        </span>
-                      </div>
-
-                      {/* Status Text Summary */}
-                      <div className="text-[11px]">
-                        {patient.statusAlur === 'menunggu_tpp' && (
-                          <span className="text-amber-700 font-semibold flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> Menunggu Validasi TPP & Informasi
-                          </span>
-                        )}
-                        {patient.statusAlur === 'menunggu_billing' && (
-                          <span className="text-sky-700 font-semibold flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> Divalidasi TPP ➔ Menunggu Billing
-                          </span>
-                        )}
-                        {patient.statusAlur === 'selesai' && (
-                          <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" /> Pemulangan Selesai (Final)
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                  {/* Status Proses: Cukup 1 Keterangan Status yang Jelas & Sederhana */}
+                  <td className="py-3.5 px-4 whitespace-nowrap">
+                    {patient.statusAlur === 'menunggu_tpp' && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-300">
+                        <Clock className="w-3.5 h-3.5 text-amber-600" />
+                        Menunggu Validasi TPP
+                      </span>
+                    )}
+                    {patient.statusAlur === 'menunggu_billing' && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-800 border border-sky-300">
+                        <Clock className="w-3.5 h-3.5 text-sky-600" />
+                        Menunggu Billing
+                      </span>
+                    )}
+                    {patient.statusAlur === 'selesai' && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-300">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        Selesai Pulang
+                      </span>
+                    )}
                   </td>
 
                   {/* Data TPP (Jaminan & Hak Kelas, Naik/Titip) */}
@@ -197,10 +140,7 @@ export const PatientDischargeTable: React.FC<PatientDischargeTableProps> = ({
                         </div>
                       </div>
                     ) : (
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-100/90 border border-amber-300 text-amber-900 text-[11px] font-bold">
-                        <AlertCircle className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                        <span>Menunggu Input TPP</span>
-                      </div>
+                      <span className="text-slate-400 text-xs italic">-</span>
                     )}
                   </td>
 

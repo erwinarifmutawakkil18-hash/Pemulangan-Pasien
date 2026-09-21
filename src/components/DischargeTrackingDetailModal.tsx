@@ -177,12 +177,6 @@ export const DischargeTrackingDetailModal: React.FC<DischargeTrackingDetailModal
                   {patient.caraKeluar}
                 </span>
               </div>
-              {patient.petugasRuangan && (
-                <div>
-                  <span className="text-slate-500 block text-[11px]">Petugas Ruangan:</span>
-                  <span className="text-slate-700">{patient.petugasRuangan}</span>
-                </div>
-              )}
               {patient.catatanRuangan && (
                 <div className="col-span-2">
                   <span className="text-slate-500 block text-[11px]">Catatan Ruangan:</span>
@@ -230,14 +224,8 @@ export const DischargeTrackingDetailModal: React.FC<DischargeTrackingDetailModal
                     {patient.tppData.titipKelas ? `Ya (${patient.tppData.alasanTitip || 'Ya'})` : 'Tidak'}
                   </span>
                 </div>
-                {patient.tppData.validatedBy && (
-                  <div className="sm:col-span-2">
-                    <span className="text-slate-500 block text-[11px]">Petugas TPP:</span>
-                    <span className="text-slate-700">{patient.tppData.validatedBy}</span>
-                  </div>
-                )}
                 {patient.tppData.catatanTpp && (
-                  <div className="sm:col-span-2">
+                  <div className="sm:col-span-4">
                     <span className="text-slate-500 block text-[11px]">Catatan / No. SEP:</span>
                     <span className="text-slate-700 font-medium">{patient.tppData.catatanTpp}</span>
                   </div>
@@ -267,21 +255,17 @@ export const DischargeTrackingDetailModal: React.FC<DischargeTrackingDetailModal
             </div>
 
             {patient.billingData ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
+              <div className="grid grid-cols-2 gap-3 pt-1">
                 <div>
                   <span className="text-slate-500 block text-[11px]">No. Kuitansi:</span>
                   <strong className="font-mono text-slate-900">{patient.billingData.nomorKuitansi || '-'}</strong>
-                </div>
-                <div>
-                  <span className="text-slate-500 block text-[11px]">Petugas Billing:</span>
-                  <span className="font-semibold text-slate-800">{patient.billingData.finalizedBy || '-'}</span>
                 </div>
                 <div>
                   <span className="text-slate-500 block text-[11px]">Status:</span>
                   <span className="font-bold text-emerald-700">Lunas / Difinalisasi</span>
                 </div>
                 {patient.billingData.catatanBilling && (
-                  <div className="col-span-2 sm:col-span-3">
+                  <div className="col-span-2">
                     <span className="text-slate-500 block text-[11px]">Keterangan Billing:</span>
                     <span className="text-slate-700">{patient.billingData.catatanBilling}</span>
                   </div>
@@ -294,19 +278,19 @@ export const DischargeTrackingDetailModal: React.FC<DischargeTrackingDetailModal
             )}
           </div>
 
-          {/* Tanda Tangan Ringkas (Khusus Print) */}
+          {/* Tanda Tangan Unit (Khusus Print) */}
           <div className="hidden print:grid grid-cols-3 gap-4 text-center pt-6 text-xs">
             <div>
-              <p className="text-slate-600 mb-12">Petugas Ruangan</p>
-              <p className="font-bold text-slate-800">{patient.petugasRuangan || '(................................)'}</p>
+              <p className="text-slate-600 mb-12">Unit Rawat Inap</p>
+              <p className="font-bold text-slate-800">(................................)</p>
             </div>
             <div>
-              <p className="text-slate-600 mb-12">Petugas TPP & Informasi</p>
-              <p className="font-bold text-slate-800">{patient.tppData?.validatedBy || '(................................)'}</p>
+              <p className="text-slate-600 mb-12">Unit TPP & Informasi</p>
+              <p className="font-bold text-slate-800">(................................)</p>
             </div>
             <div>
-              <p className="text-slate-600 mb-12">Petugas Billing</p>
-              <p className="font-bold text-slate-800">{patient.billingData?.finalizedBy || '(................................)'}</p>
+              <p className="text-slate-600 mb-12">Unit Billing</p>
+              <p className="font-bold text-slate-800">(................................)</p>
             </div>
           </div>
 

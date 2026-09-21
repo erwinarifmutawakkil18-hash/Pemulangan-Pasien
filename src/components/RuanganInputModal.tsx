@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { X, UserPlus, AlertCircle, Building2, User, Stethoscope, DoorOpen } from 'lucide-react';
 import { 
-  PatientDischarge, DAFTAR_RUANGAN, DAFTAR_DPJP, DAFTAR_CARA_KELUAR, CaraKeluar, RuanganItem 
+  PatientDischarge, DAFTAR_RUANGAN, DAFTAR_DPJP, DAFTAR_CARA_KELUAR, CaraKeluar, RuanganItem, BangsalId, DAFTAR_BANGSAL 
 } from '../types';
 
 interface RuanganInputModalProps {
   ruanganAwal?: string;
+  bangsalId?: BangsalId;
   ruanganList?: RuanganItem[];
   dpjpList?: string[];
   caraKeluarList?: string[];
@@ -15,22 +16,36 @@ interface RuanganInputModalProps {
 
 export const RuanganInputModal: React.FC<RuanganInputModalProps> = ({
   ruanganAwal,
+  bangsalId,
   ruanganList,
   dpjpList,
   caraKeluarList,
   onClose,
   onSubmit,
 }) => {
-  const activeRooms = ruanganList ? ruanganList.filter(r => r.aktif).map(r => r.nama) : DAFTAR_RUANGAN;
+  // Saring ruangan: jika petugas memiliki bangsalId tertentu, utamakan hanya menampilkan kamar pada bangsal tersebut
+  const filteredRoomItems = ruanganList 
+    ? (bangsalId ? ruanganList.filter(r => r.aktif && r.bangsalId === bangsalId) : ruanganList.filter(r => r.aktif))
+    : [];
+
+  const activeRooms = filteredRoomItems.length > 0 
+    ? filteredRoomItems.map(r => r.nama) 
+    : (ruanganList ? ruanganList.filter(r => r.aktif).map(r => r.nama) : DAFTAR_RUANGAN);
+
+  const currentBangsalMeta = bangsalId ? DAFTAR_BANGSAL.find(b => b.id === bangsalId) : undefined;
   const activeDpjps = dpjpList || DAFTAR_DPJP;
   const activeCaraKeluar = caraKeluarList || DAFTAR_CARA_KELUAR;
 
   const [noRm, setNoRm] = useState('');
   const [namaPasien, setNamaPasien] = useState('');
-  const [ruangan, setRuangan] = useState(ruanganAwal || activeRooms[0] || 'Ruang Rawat');
+  const [ruangan, setRuangan] = useState(() => {
+    if (ruanganAwal && activeRooms.includes(ruanganAwal)) {
+      return ruanganAwal;
+    }
+    return activeRooms[0] || 'Ruang Rawat';
+  });
   const [dpjp, setDpjp] = useState(activeDpjps[0] || 'dr. DPJP');
   const [caraKeluar, setCaraKeluar] = useState<CaraKeluar>((activeCaraKeluar[0] as CaraKeluar) || 'Persetujuan Dokter / Sembuh');
-  const [petugasRuangan, setPetugasRuangan] = useState('');
   const [catatanRuangan, setCatatanRuangan] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -59,6 +74,8 @@ export const RuanganInputModal: React.FC<RuanganInputModalProps> = ({
     const now = new Date();
     const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
+    const defaultPetugas = currentBangsalMeta ? `R. ${currentBangsalMeta.nama}` : 'R. Rawat Inap';
+
     const newPatient: PatientDischarge = {
       id: `pt-${Date.now()}`,
       noRm,
@@ -67,7 +84,7 @@ export const RuanganInputModal: React.FC<RuanganInputModalProps> = ({
       dpjp,
       caraKeluar,
       waktuInputRuangan: formattedDate,
-      petugasRuangan: petugasRuangan.trim() || 'Perawat Ruangan',
+      petugasRuangan: defaultPetugas,
       statusAlur: 'menunggu_tpp',
       catatanRuangan: catatanRuangan.trim() || undefined,
     };
@@ -146,9 +163,16 @@ export const RuanganInputModal: React.FC<RuanganInputModalProps> = ({
 
           {/* 3. Ruangan (Dropdown) */}
           <div>
-            <label className="block font-bold text-slate-700 mb-1">
-              3. Ruangan Rawat Inap <span className="text-red-500">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block font-bold text-slate-700">
+                3. Ruangan / Kamar Rawat Inap <span className="text-red-500">*</span>
+              </label>
+              {currentBangsalMeta && (
+                <span className="text-[11px] font-semibold text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-md">
+                  R. {currentBangsalMeta.nama} ({activeRooms.length} Kamar)
+                </span>
+              )}
+            </div>
             <div className="relative">
               <select
                 value={ruangan}
@@ -200,20 +224,8 @@ export const RuanganInputModal: React.FC<RuanganInputModalProps> = ({
             </select>
           </div>
 
-          {/* Optional: Petugas & Catatan Ruangan */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-            <div>
-              <label className="block font-semibold text-slate-600 mb-1">
-                Petugas Perawat Penginput:
-              </label>
-              <input
-                type="text"
-                value={petugasRuangan}
-                onChange={(e) => setPetugasRuangan(e.target.value)}
-                placeholder="cth: Ns. Siti Aminah, S.Kep"
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 text-slate-800 focus:outline-teal-600"
-              />
-            </div>
+          {/* Optional: Catatan Ruangan (Nama Petugas Dihilangkan) */}
+          <div className="pt-2 border-t border-slate-100">
             <div>
               <label className="block font-semibold text-slate-600 mb-1">
                 Catatan Tambahan Ruangan:
@@ -222,8 +234,8 @@ export const RuanganInputModal: React.FC<RuanganInputModalProps> = ({
                 type="text"
                 value={catatanRuangan}
                 onChange={(e) => setCatatanRuangan(e.target.value)}
-                placeholder="cth: Surat kontrol sudah diberikan"
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2 text-slate-800 focus:outline-teal-600"
+                placeholder="cth: Surat kontrol sudah diberikan, obat dibawa pulang"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-800 focus:outline-teal-600"
               />
             </div>
           </div>

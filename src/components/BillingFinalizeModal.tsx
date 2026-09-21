@@ -131,32 +131,17 @@ export const BillingFinalizeModal: React.FC<BillingFinalizeModalProps> = ({
         {/* Input Form Billing */}
         <form onSubmit={handleFinalize} className="p-6 space-y-4 text-xs">
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">
-                Nomor Kuitansi / Ref Billing:
-              </label>
-              <input
-                type="text"
-                value={nomorKuitansi}
-                onChange={(e) => setNomorKuitansi(e.target.value)}
-                placeholder="cth: KWT/2026/09/0123"
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono focus:outline-emerald-600"
-              />
-            </div>
-
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">
-                Petugas Billing:
-              </label>
-              <input
-                type="text"
-                value={petugasBilling}
-                onChange={(e) => setPetugasBilling(e.target.value)}
-                placeholder="Nama Petugas Billing"
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 focus:outline-emerald-600"
-              />
-            </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">
+              Nomor Kuitansi / Ref Billing:
+            </label>
+            <input
+              type="text"
+              value={nomorKuitansi}
+              onChange={(e) => setNomorKuitansi(e.target.value)}
+              placeholder="cth: KWT/2026/09/0123"
+              className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-slate-900 font-mono focus:outline-emerald-600"
+            />
           </div>
 
           <div>
