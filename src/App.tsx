@@ -3,7 +3,7 @@ import {
   PatientDischarge, RoleType, DUMMY_PATIENTS, 
   TppValidationData, BillingFinalizationData,
   MasterSettings, DEFAULT_MASTER_SETTINGS, AuthUser,
-  DAFTAR_BANGSAL
+  DAFTAR_BANGSAL, DEFAULT_USER_ACCOUNTS, UserAccountCredential
 } from './types';
 import { RoleNavbar, ScopeMode } from './components/RoleNavbar';
 import { PatientDischargeTable } from './components/PatientDischargeTable';
@@ -13,14 +13,16 @@ import { BillingFinalizeModal } from './components/BillingFinalizeModal';
 import { DischargeTrackingDetailModal } from './components/DischargeTrackingDetailModal';
 import { AdminSettingsView } from './components/AdminSettingsView';
 import { LoginView } from './components/LoginView';
+import { ChangePinModal } from './components/ChangePinModal';
 import { 
   Building2, CreditCard, Receipt, CheckCircle2, 
   Clock, ShieldCheck 
 } from 'lucide-react';
 
-const STORAGE_KEY = 'sim_pemulangan_pasien_3level_v3';
-const SETTINGS_STORAGE_KEY = 'sim_master_settings_v3';
+const STORAGE_KEY = 'sim_pemulangan_pasien_3level_v4';
+const SETTINGS_STORAGE_KEY = 'sim_master_settings_v4';
 const AUTH_USER_KEY = 'sim_current_user_session_v2';
+const USER_ACCOUNTS_KEY = 'sim_user_accounts_v3';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
@@ -55,9 +57,9 @@ export default function App() {
 
   const [masterSettings, setMasterSettings] = useState<MasterSettings>(() => {
     try {
-      const storedV3 = localStorage.getItem(SETTINGS_STORAGE_KEY);
-      if (storedV3) {
-        const parsed: MasterSettings = JSON.parse(storedV3);
+      const storedV4 = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (storedV4) {
+        const parsed: MasterSettings = JSON.parse(storedV4);
         if (Array.isArray(parsed.daftarCaraKeluar)) {
           parsed.daftarCaraKeluar = parsed.daftarCaraKeluar.map((item) =>
             item === 'Membaik (Rawat Jalan)' ? 'Membaik' : item
@@ -65,14 +67,14 @@ export default function App() {
         }
         return parsed;
       }
-      // Migrasi dari v2 jika ada: pertahankan PIN dll, perbarui daftarRuangan dengan 7 bangsal
-      const storedV2 = localStorage.getItem('sim_master_settings_v2');
-      if (storedV2) {
-        const parsed = JSON.parse(storedV2);
+      // Migrasi dari v3 jika ada: perbarui daftarDpjp ke daftar dokter riil
+      const storedV3 = localStorage.getItem('sim_master_settings_v3');
+      if (storedV3) {
+        const parsed = JSON.parse(storedV3);
         const migrated: MasterSettings = {
           ...DEFAULT_MASTER_SETTINGS,
           ...parsed,
-          daftarRuangan: DEFAULT_MASTER_SETTINGS.daftarRuangan,
+          daftarDpjp: DEFAULT_MASTER_SETTINGS.daftarDpjp,
           daftarCaraKeluar: (parsed.daftarCaraKeluar || DEFAULT_MASTER_SETTINGS.daftarCaraKeluar).map((item: string) =>
             item === 'Membaik (Rawat Jalan)' ? 'Membaik' : item
           )
@@ -84,6 +86,25 @@ export default function App() {
       console.warn('Gagal membaca master settings, memakai default.');
     }
     return DEFAULT_MASTER_SETTINGS;
+  });
+
+  const [userAccounts, setUserAccounts] = useState<UserAccountCredential[]>(() => {
+    try {
+      const stored = localStorage.getItem(USER_ACCOUNTS_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const accountMap = new Map(parsed.map((a: UserAccountCredential) => [a.id, a]));
+          return DEFAULT_USER_ACCOUNTS.map(defaultAcc => {
+            const existing = accountMap.get(defaultAcc.id);
+            return existing ? { ...defaultAcc, ...existing } : defaultAcc;
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Gagal membaca akun user dari localStorage:', e);
+    }
+    return DEFAULT_USER_ACCOUNTS;
   });
 
   const [activeRole, setActiveRole] = useState<RoleType | 'monitor'>(() => {
@@ -100,6 +121,7 @@ export default function App() {
 
   // Modals state
   const [isInputRuanganOpen, setIsInputRuanganOpen] = useState(false);
+  const [isChangePinOpen, setIsChangePinOpen] = useState(false);
   const [selectedTppPatient, setSelectedTppPatient] = useState<PatientDischarge | null>(null);
   const [selectedBillingPatient, setSelectedBillingPatient] = useState<PatientDischarge | null>(null);
   const [selectedDetailPatient, setSelectedDetailPatient] = useState<PatientDischarge | null>(null);
@@ -136,6 +158,35 @@ export default function App() {
       console.error('Gagal menyimpan settings ke localStorage:', e);
     }
   }, [masterSettings]);
+
+  // Sync userAccounts to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(USER_ACCOUNTS_KEY, JSON.stringify(userAccounts));
+    } catch (e) {
+      console.error('Gagal menyimpan akun user ke localStorage:', e);
+    }
+  }, [userAccounts]);
+
+  const handleSaveUserPin = (accountId: string, newPin: string) => {
+    setUserAccounts(prev =>
+      prev.map(acc => (acc.id === accountId ? { ...acc, pin: newPin } : acc))
+    );
+
+    const target = userAccounts.find(a => a.id === accountId);
+    if (target?.role === 'admin') {
+      setMasterSettings(prev => ({ ...prev, adminPin: newPin }));
+    }
+
+    showToast(`PIN akun ${target?.nama || ''} berhasil diperbarui.`);
+  };
+
+  const handleResetAllPins = () => {
+    const resetList = DEFAULT_USER_ACCOUNTS.map(a => ({ ...a, pin: '1234' }));
+    setUserAccounts(resetList);
+    setMasterSettings(prev => ({ ...prev, adminPin: '1234' }));
+    showToast('Semua PIN akun berhasil dikembalikan ke default: 1234');
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -323,6 +374,7 @@ export default function App() {
       <LoginView
         onLoginSuccess={handleLoginSuccess}
         ruanganList={masterSettings.daftarRuangan}
+        userAccounts={userAccounts}
       />
     );
   }
@@ -341,7 +393,7 @@ export default function App() {
       )}
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-2.5 sm:p-4 lg:p-6 space-y-4 sm:space-y-6">
         
         {/* Role Switcher & Search Bar */}
         <RoleNavbar
@@ -354,6 +406,7 @@ export default function App() {
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           onOpenInputRuangan={() => setIsInputRuanganOpen(true)}
+          onOpenChangePin={() => setIsChangePinOpen(true)}
           onResetData={handleResetData}
           countMenungguTpp={countMenungguTpp}
           countMenungguBilling={countMenungguBilling}
@@ -380,6 +433,9 @@ export default function App() {
             onCloseAdmin={() => setActiveRole('ruangan')}
             onExportBackup={handleExportBackup}
             onImportBackup={handleImportBackup}
+            userAccounts={userAccounts}
+            onSaveUserPin={handleSaveUserPin}
+            onResetAllPins={handleResetAllPins}
           />
         ) : (
           <>
@@ -492,6 +548,18 @@ export default function App() {
         <DischargeTrackingDetailModal
           patient={selectedDetailPatient}
           onClose={() => setSelectedDetailPatient(null)}
+        />
+      )}
+
+      {/* 5. Modal Ganti PIN Pengguna (Ruangan, TPP, Billing, Admin) */}
+      {isChangePinOpen && currentUser && (
+        <ChangePinModal
+          isOpen={isChangePinOpen}
+          onClose={() => setIsChangePinOpen(false)}
+          currentUser={currentUser}
+          userAccounts={userAccounts}
+          onSavePin={handleSaveUserPin}
+          onSuccessToast={showToast}
         />
       )}
 

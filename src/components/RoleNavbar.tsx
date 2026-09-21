@@ -2,7 +2,8 @@ import React from 'react';
 import { 
   Building2, CreditCard, Receipt, Users, Plus, 
   Search, RefreshCw, Filter, CheckCircle2, Clock, AlertCircle,
-  Shield, Settings, Calendar, LogOut, UserCheck, Sparkles, Globe, Eye
+  Shield, Settings, Calendar, LogOut, UserCheck, Sparkles, Globe, Eye,
+  KeyRound
 } from 'lucide-react';
 import { RoleType, DAFTAR_RUANGAN, RuanganItem, AuthUser, DAFTAR_BANGSAL } from '../types';
 
@@ -11,6 +12,7 @@ export type ScopeMode = 'own' | 'all';
 interface RoleNavbarProps {
   currentUser?: AuthUser | null;
   onLogout?: () => void;
+  onOpenChangePin?: () => void;
   activeRole: RoleType | 'monitor';
   onRoleChange: (role: RoleType | 'monitor') => void;
   selectedRuangan: string;
@@ -36,6 +38,7 @@ interface RoleNavbarProps {
 export const RoleNavbar: React.FC<RoleNavbarProps> = ({
   currentUser,
   onLogout,
+  onOpenChangePin,
   activeRole,
   onRoleChange,
   selectedRuangan,
@@ -118,6 +121,18 @@ export const RoleNavbar: React.FC<RoleNavbarProps> = ({
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Logout & User Options */}
+          {currentUser && onOpenChangePin && (
+            <button
+              onClick={onOpenChangePin}
+              title="Ganti PIN / Password akun ini"
+              className="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 rounded-xl transition border border-slate-200 text-xs font-semibold flex items-center gap-1.5 shadow-2xs"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-teal-600" />
+              <span className="hidden sm:inline">Ganti PIN</span>
+            </button>
           )}
 
           {/* Reset Data Helper */}

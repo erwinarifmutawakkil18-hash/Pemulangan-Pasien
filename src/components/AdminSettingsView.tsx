@@ -3,10 +3,11 @@ import {
   Shield, Settings, Plus, Trash2, Edit2, Check, X, 
   Building2, UserCheck, Stethoscope, DoorOpen, CreditCard, 
   Lock, Unlock, KeyRound, AlertTriangle, Layers, CheckCircle2,
-  Download, Upload
+  Download, Upload, RotateCcw
 } from 'lucide-react';
 import { 
-  MasterSettings, RuanganItem, KategoriRuangan, BangsalId, DAFTAR_BANGSAL, DEFAULT_USER_ACCOUNTS 
+  MasterSettings, RuanganItem, KategoriRuangan, BangsalId, DAFTAR_BANGSAL, DEFAULT_USER_ACCOUNTS,
+  UserAccountCredential 
 } from '../types';
 
 interface AdminSettingsViewProps {
@@ -15,6 +16,9 @@ interface AdminSettingsViewProps {
   onCloseAdmin: () => void;
   onExportBackup?: () => void;
   onImportBackup?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  userAccounts?: UserAccountCredential[];
+  onSaveUserPin?: (accountId: string, newPin: string) => void;
+  onResetAllPins?: () => void;
 }
 
 const KATEGORI_RUANGAN_OPTIONS: KategoriRuangan[] = [
@@ -31,6 +35,9 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
   onCloseAdmin,
   onExportBackup,
   onImportBackup,
+  userAccounts,
+  onSaveUserPin,
+  onResetAllPins,
 }) => {
   // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -42,6 +49,10 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
 
   // Working copy of master settings
   const [localSettings, setLocalSettings] = useState<MasterSettings>(settings);
+
+  // Editing PIN for accounts by Admin
+  const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
+  const [editingAccountPin, setEditingAccountPin] = useState<string>('');
 
   // New item inputs
   const [newRuanganNama, setNewRuanganNama] = useState('');
@@ -182,6 +193,12 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
     };
     setLocalSettings(updated);
     onSaveSettings(updated);
+    if (onSaveUserPin) {
+      const adminAcc = (userAccounts || DEFAULT_USER_ACCOUNTS).find((a) => a.role === 'admin');
+      if (adminAcc) {
+        onSaveUserPin(adminAcc.id, newPin);
+      }
+    }
     setNewPin('');
     setConfirmPin('');
     setSecuritySuccess('PIN Admin berhasil diperbarui!');
@@ -288,11 +305,11 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
       </div>
 
       {/* Sub-Tabs Nav */}
-      <div className="border-b border-slate-200 bg-slate-50/70 p-2 flex flex-wrap gap-1 text-xs">
+      <div className="border-b border-slate-200 bg-slate-50/70 p-2 flex items-center gap-1.5 overflow-x-auto text-xs">
         
         <button
           onClick={() => setAdminTab('ruangan')}
-          className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 transition ${
+          className={`px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 transition shrink-0 whitespace-nowrap ${
             adminTab === 'ruangan'
               ? 'bg-white text-indigo-700 shadow-xs border border-slate-200'
               : 'text-slate-600 hover:bg-slate-100'
@@ -304,7 +321,7 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
 
         <button
           onClick={() => setAdminTab('dpjp')}
-          className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 transition ${
+          className={`px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 transition shrink-0 whitespace-nowrap ${
             adminTab === 'dpjp'
               ? 'bg-white text-indigo-700 shadow-xs border border-slate-200'
               : 'text-slate-600 hover:bg-slate-100'
@@ -316,7 +333,7 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
 
         <button
           onClick={() => setAdminTab('carakeluar')}
-          className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 transition ${
+          className={`px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 transition shrink-0 whitespace-nowrap ${
             adminTab === 'carakeluar'
               ? 'bg-white text-indigo-700 shadow-xs border border-slate-200'
               : 'text-slate-600 hover:bg-slate-100'
@@ -328,7 +345,7 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
 
         <button
           onClick={() => setAdminTab('pembiayaan')}
-          className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 transition ${
+          className={`px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 transition shrink-0 whitespace-nowrap ${
             adminTab === 'pembiayaan'
               ? 'bg-white text-indigo-700 shadow-xs border border-slate-200'
               : 'text-slate-600 hover:bg-slate-100'
@@ -340,7 +357,7 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
 
         <button
           onClick={() => setAdminTab('hakkelas')}
-          className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 transition ${
+          className={`px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 transition shrink-0 whitespace-nowrap ${
             adminTab === 'hakkelas'
               ? 'bg-white text-indigo-700 shadow-xs border border-slate-200'
               : 'text-slate-600 hover:bg-slate-100'
@@ -352,7 +369,7 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
 
         <button
           onClick={() => setAdminTab('keamanan')}
-          className={`px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 transition ${
+          className={`px-3 py-2 rounded-xl font-bold flex items-center gap-1.5 transition shrink-0 whitespace-nowrap ${
             adminTab === 'keamanan'
               ? 'bg-white text-indigo-700 shadow-xs border border-slate-200'
               : 'text-slate-600 hover:bg-slate-100'
@@ -361,11 +378,10 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
           <Lock className="w-4 h-4" />
           Hak Akses & PIN
         </button>
-
       </div>
 
       {/* Tab Contents */}
-      <div className="p-6 text-xs text-slate-800">
+      <div className="p-3.5 sm:p-6 text-xs text-slate-800">
         
         {/* 1. MASTER RUANGAN DENGAN KATEGORI & BANGSAL */}
         {adminTab === 'ruangan' && (
@@ -805,55 +821,172 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
             </div>
 
             {/* Daftar Akun Login Berbasis R. & Unit */}
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-              <div className="flex items-center justify-between">
+            <div className="p-3 sm:p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
                   <strong className="text-slate-800 block text-xs">Daftar Akun Pengguna Terdaftar (Per R. & Unit)</strong>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Akun login per R. rawat inap dan unit kerja (PIN Default: <code>1234</code>).
+                    Kelola dan ubah PIN akun unit ruangan rawat inap, TPP, Billing, dan Admin (Default: <code>1234</code>).
                   </p>
                 </div>
-                <span className="text-[10px] bg-teal-100 text-teal-800 font-bold px-2 py-0.5 rounded-md">
-                  {DEFAULT_USER_ACCOUNTS.length} Akun
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[10px] bg-teal-100 text-teal-800 font-bold px-2 py-0.5 rounded-md">
+                    {(userAccounts || DEFAULT_USER_ACCOUNTS).length} Akun
+                  </span>
+                  {onResetAllPins && (userAccounts || DEFAULT_USER_ACCOUNTS).some(a => a.pin !== '1234') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm('Reset SEMUA PIN akun ruangan & unit ke default 1234?')) {
+                          onResetAllPins();
+                          setSecuritySuccess('Semua PIN akun berhasil di-reset ke 1234!');
+                          setTimeout(() => setSecuritySuccess(''), 3000);
+                        }
+                      }}
+                      className="px-2 py-1 text-[10px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg transition flex items-center gap-1"
+                      title="Kembalikan semua PIN akun ke 1234"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>Reset Semua</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <div className="border border-slate-200 rounded-xl overflow-hidden bg-white text-[11px]">
-                <table className="w-full text-left">
+              {/* Responsive scrollable table container */}
+              <div className="border border-slate-200 rounded-xl overflow-x-auto bg-white text-[11px] shadow-2xs">
+                <table className="w-full min-w-[540px] text-left border-collapse">
                   <thead className="bg-slate-100/90 text-slate-600 border-b border-slate-200">
                     <tr>
-                      <th className="p-2.5 font-bold">Unit / R. Rawat Inap</th>
-                      <th className="p-2.5 font-bold">Username Akun</th>
+                      <th className="p-2.5 font-bold">Unit / Akun</th>
                       <th className="p-2.5 font-bold">Peran</th>
-                      <th className="p-2.5 font-bold">Kamar Terhubung</th>
+                      <th className="p-2.5 font-bold hidden md:table-cell">Kamar</th>
+                      <th className="p-2.5 font-bold">Status PIN</th>
+                      <th className="p-2.5 font-bold text-right">Aksi Admin</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {DEFAULT_USER_ACCOUNTS.map((acc) => {
+                    {(userAccounts && userAccounts.length > 0 ? userAccounts : DEFAULT_USER_ACCOUNTS).map((acc) => {
                       const rooms = acc.bangsalId 
                         ? localSettings.daftarRuangan.filter(r => r.bangsalId === acc.bangsalId && r.aktif)
                         : [];
+                      const isDefault = acc.pin === '1234';
+                      const isEditing = editingAccountId === acc.id;
 
                       return (
-                        <tr key={acc.id} className="hover:bg-slate-50">
-                          <td className="p-2.5 font-semibold text-slate-800">
-                            {acc.nama}
+                        <tr key={acc.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-2.5">
+                            <div className="font-semibold text-slate-800 leading-tight">
+                              {acc.nama}
+                            </div>
+                            <div className="font-mono text-teal-700 text-[10px] font-medium mt-0.5">
+                              @{acc.username}
+                            </div>
                           </td>
-                          <td className="p-2.5 font-mono text-teal-700 font-bold">
-                            {acc.username}
-                          </td>
-                          <td className="p-2.5 text-slate-600 capitalize">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          <td className="p-2.5 text-slate-600">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${
                               acc.role === 'ruangan' ? 'bg-teal-50 text-teal-800 border border-teal-200' :
                               acc.role === 'tpp' ? 'bg-sky-50 text-sky-800 border border-sky-200' :
                               acc.role === 'billing' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' :
                               'bg-indigo-50 text-indigo-800 border border-indigo-200'
                             }`}>
-                              {acc.role === 'ruangan' ? 'R. Rawat Inap' : acc.role}
+                              {acc.role === 'ruangan' ? 'R. Inap' : acc.role.toUpperCase()}
                             </span>
                           </td>
-                          <td className="p-2.5 text-slate-500">
-                            {acc.bangsalId ? `${rooms.length} Kamar Aktif` : 'Seluruh Pasien'}
+                          <td className="p-2.5 text-slate-500 hidden md:table-cell whitespace-nowrap">
+                            {acc.bangsalId ? `${rooms.length} Kamar` : 'Seluruh Pasien'}
+                          </td>
+                          <td className="p-2.5 whitespace-nowrap">
+                            {isDefault ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                Default (1234)
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                <KeyRound className="w-2.5 h-2.5" />
+                                Kustom
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-2.5 text-right whitespace-nowrap">
+                            {isEditing ? (
+                              <div className="flex items-center justify-end gap-1">
+                                <input
+                                  type="text"
+                                  maxLength={12}
+                                  value={editingAccountPin}
+                                  onChange={(e) => setEditingAccountPin(e.target.value)}
+                                  placeholder="PIN"
+                                  className="w-16 bg-white border border-teal-500 rounded-lg px-2 py-1 text-[11px] font-mono text-center focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                  autoFocus
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (editingAccountPin.trim().length < 4) {
+                                      alert('PIN minimal 4 karakter/angka.');
+                                      return;
+                                    }
+                                    if (onSaveUserPin) {
+                                      onSaveUserPin(acc.id, editingAccountPin.trim());
+                                    }
+                                    setEditingAccountId(null);
+                                    setEditingAccountPin('');
+                                    setSecuritySuccess(`PIN untuk ${acc.nama} berhasil diubah!`);
+                                    setTimeout(() => setSecuritySuccess(''), 3000);
+                                  }}
+                                  className="p-1.5 bg-teal-700 hover:bg-teal-800 text-white rounded-lg transition"
+                                  title="Simpan PIN Baru"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingAccountId(null);
+                                    setEditingAccountPin('');
+                                  }}
+                                  className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition"
+                                  title="Batal"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingAccountId(acc.id);
+                                    setEditingAccountPin(acc.pin);
+                                  }}
+                                  className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg font-semibold text-[10px] flex items-center gap-1 transition shadow-2xs"
+                                  title="Ubah PIN Akun"
+                                >
+                                  <KeyRound className="w-3 h-3 text-teal-600" />
+                                  <span>Ubah PIN</span>
+                                </button>
+                                {!isDefault && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (window.confirm(`Reset PIN akun ${acc.nama} kembali ke 1234?`)) {
+                                        if (onSaveUserPin) {
+                                          onSaveUserPin(acc.id, '1234');
+                                          setSecuritySuccess(`PIN ${acc.nama} berhasil di-reset ke 1234!`);
+                                          setTimeout(() => setSecuritySuccess(''), 3000);
+                                        }
+                                      }
+                                    }}
+                                    className="px-1.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg font-semibold text-[10px] flex items-center gap-1 transition"
+                                    title="Kembalikan PIN akun ke default 1234"
+                                  >
+                                    <RotateCcw className="w-3 h-3" />
+                                    <span className="hidden sm:inline">Reset</span>
+                                  </button>
+                                )}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );

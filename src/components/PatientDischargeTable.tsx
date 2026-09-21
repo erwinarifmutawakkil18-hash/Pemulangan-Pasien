@@ -40,7 +40,7 @@ export const PatientDischargeTable: React.FC<PatientDischargeTableProps> = ({
       
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs">
+        <table className="w-full min-w-[700px] text-left text-xs">
           <thead className="bg-slate-100/70 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
             <tr>
               <th className="py-3 px-4">No. RM & Nama Pasien</th>

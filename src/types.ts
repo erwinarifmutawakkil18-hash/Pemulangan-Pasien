@@ -179,21 +179,21 @@ export type PembiayaanType =
 export type HakKelasType = 'Kelas 1' | 'Kelas 2' | 'Kelas 3' | 'VIP' | 'VVIP';
 
 export const DAFTAR_DPJP: string[] = [
-  'dr. Totok Mardiyanto, Sp. B',
-  'dr. Budi Setiawan, Sp. B',
-  'dr. Nanik Triana Kartikasari, Sp. PD',
   'dr. Vonny Mariany Deckert, Sp.A., M. Biomed',
-  'dr. Nur Rochmah Kusuma Rahayu, Sp.A',
-  'dr. Rahajeng Ayu Pramudita, Sp. OG',
-  'dr. Siti Aisyah, Sp. OG',
+  'dr. Totok Mardiyanto, Sp. B',
+  'dr. Andy Michael, Sp.B',
+  'dr. Nanik Triana Kartikasari, Sp. PD',
+  'dr. Aditya Dias Pradana, Sp. PD',
+  'dr. R. Nendyo Susilo Sp.THT-KL',
+  'dr. Ika Alimawati, Sp. N',
   'dr. Kresna Nugraha Sp, Sp.JP',
-  'dr. Eko Prasetyo, Sp. OT',
-  'dr. Dewi Sartika, Sp. S',
-  'dr. Andi Wijaya, Sp. P',
-  'dr. Hendra Kusuma, Sp. THT-KL',
-  'dr. Maya Indriani, Sp. M',
-  'dr. Rizky Pratama, Sp. An',
-  'dr. Wahyu Hidayat, Sp. Rad'
+  'Dr. dr. Hj. Yessi Rahmawati, Sp.OG, Subsp., Obginsos, M.H., M.Kes., C.M.C., FISQua.',
+  'dr. H. Donny Rahadianto, Sp. OG',
+  'dr. Vincentius Edwin Pradana Setiawan, Sp. OG',
+  'dr. H. Sugeng Purnomo, Sp. OG',
+  'dr. Anung Sri Handayani, Sp. P',
+  'dr. A. Ziadul Hunaini El Munifi, Sp. OT',
+  'dr. Riza Hidayat, Sp. THT-KL'
 ];
 
 export const DAFTAR_CARA_KELUAR: CaraKeluar[] = [
@@ -430,7 +430,7 @@ export const DUMMY_PATIENTS: PatientDischarge[] = [
     noRm: '028712',
     namaPasien: 'Ny. Siti Nurhaliza',
     ruangan: 'Observasi 1',
-    dpjp: 'dr. Siti Aisyah, Sp. OG',
+    dpjp: 'Dr. dr. Hj. Yessi Rahmawati, Sp.OG, Subsp., Obginsos, M.H., M.Kes., C.M.C., FISQua.',
     caraKeluar: 'Persetujuan Dokter / Sembuh',
     waktuInputRuangan: '2026-09-17 12:30',
     petugasRuangan: 'Bdn. Ratna, S.Tr.Keb',

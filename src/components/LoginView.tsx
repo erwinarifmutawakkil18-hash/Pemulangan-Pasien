@@ -6,19 +6,23 @@ import {
 } from 'lucide-react';
 import { 
   RoleType, AuthUser, RuanganItem, 
-  DEFAULT_USER_ACCOUNTS, BangsalId, DAFTAR_BANGSAL 
+  DEFAULT_USER_ACCOUNTS, BangsalId, DAFTAR_BANGSAL,
+  UserAccountCredential
 } from '../types';
 
 interface LoginViewProps {
   onLoginSuccess: (user: AuthUser) => void;
   ruanganList?: RuanganItem[];
+  userAccounts?: UserAccountCredential[];
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({
   onLoginSuccess,
   ruanganList,
+  userAccounts,
 }) => {
   const allRooms = ruanganList || [];
+  const accounts = userAccounts && userAccounts.length > 0 ? userAccounts : DEFAULT_USER_ACCOUNTS;
 
   // Pilihan Role Utama: 'bangsal' (R. Rawat Inap), 'tpp', 'billing', 'admin'
   const [loginCategory, setLoginCategory] = useState<'bangsal' | 'tpp' | 'billing' | 'admin'>('bangsal');
@@ -29,22 +33,26 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [pinInput, setPinInput] = useState<string>('1234');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Temukan akun target saat ini
+  const targetAccount = accounts.find(a => {
+    if (loginCategory === 'bangsal') {
+      return a.role === 'ruangan' && a.bangsalId === selectedBangsalId;
+    }
+    return a.role === loginCategory;
+  });
+
+  const expectedPin = targetAccount ? targetAccount.pin : '1234';
+
   const handleLogin = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setErrorMsg(null);
 
-    // Temukan akun target
-    const targetAccount = DEFAULT_USER_ACCOUNTS.find(a => {
-      if (loginCategory === 'bangsal') {
-        return a.role === 'ruangan' && a.bangsalId === selectedBangsalId;
-      }
-      return a.role === loginCategory;
-    });
-
-    const expectedPin = targetAccount ? targetAccount.pin : '1234';
-
     if (pinInput.trim() !== expectedPin) {
-      setErrorMsg(`PIN tidak tepat. Gunakan PIN default: ${expectedPin}`);
+      setErrorMsg(
+        expectedPin === '1234'
+          ? 'PIN tidak tepat. Gunakan PIN default: 1234'
+          : 'PIN tidak tepat. Silakan masukkan PIN baru yang telah Anda ubah atau hubungi Admin jika lupa PIN.'
+      );
       return;
     }
 
@@ -75,7 +83,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
   // Login Cepat untuk Non-Bangsal (TPP, Billing, Admin)
   const handleQuickLoginNonBangsal = (role: 'tpp' | 'billing' | 'admin') => {
     setLoginCategory(role);
-    const targetAccount = DEFAULT_USER_ACCOUNTS.find(a => a.role === role);
+    const acc = accounts.find(a => a.role === role);
     const defaultNama = 
       role === 'tpp' ? 'TPP & Informasi'
       : role === 'billing' ? 'Billing & Kasir'
@@ -83,7 +91,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
 
     const authUser: AuthUser = {
       id: `usr_${Date.now()}`,
-      username: targetAccount?.username || role,
+      username: acc?.username || role,
       namaLengkap: defaultNama,
       role: role,
       waktuLogin: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
@@ -93,7 +101,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
   };
 
   // Ambil data akun bangsal yang sedang dipilih
-  const currentBangsalAccount = DEFAULT_USER_ACCOUNTS.find(
+  const currentBangsalAccount = accounts.find(
     a => a.role === 'ruangan' && a.bangsalId === selectedBangsalId
   );
   const roomsInSelectedBangsal = allRooms.filter(r => r.aktif && r.bangsalId === selectedBangsalId);
@@ -228,7 +236,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 {DAFTAR_BANGSAL.map((bangsal) => {
                   const isSelected = selectedBangsalId === bangsal.id;
                   const roomCount = allRooms.filter(r => r.aktif && r.bangsalId === bangsal.id).length;
-                  const acc = DEFAULT_USER_ACCOUNTS.find(a => a.bangsalId === bangsal.id);
+                  const acc = accounts.find(a => a.bangsalId === bangsal.id);
 
                   return (
                     <button
